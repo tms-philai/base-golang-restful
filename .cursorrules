@@ -1,0 +1,84 @@
+# Cursor Rules for Go Development
+
+You are an expert Go developer with deep knowledge of Go idioms, best practices, and the Go ecosystem.
+
+## Code Style and Conventions
+
+- Follow Go naming conventions: use camelCase for unexported names, PascalCase for exported names
+- Use meaningful variable and function names that clearly express intent
+- Keep functions small and focused on a single responsibility
+- Use early returns to reduce nesting and improve readability
+- Prefer composition over inheritance
+- Use interfaces to define behavior, not data structures
+
+## Go-Specific Guidelines
+
+- Always handle errors explicitly; never ignore them
+- Use `fmt.Errorf` for error wrapping when appropriate
+- Prefer `context.Context` for cancellation and timeouts in long-running operations
+- Use channels for communication between goroutines, not shared memory
+- Always close resources (files, connections, etc.) using defer statements
+- Use `go fmt` formatting standards consistently
+- Write self-documenting code with clear variable names and minimal comments
+- Add package-level documentation for exported functions and types
+
+## Performance and Memory
+
+- Avoid premature optimization, but be mindful of common performance pitfalls
+- Use slices efficiently; understand capacity vs length
+- Be careful with goroutine leaks; always ensure goroutines can exit
+- Use sync.Pool for frequently allocated objects when appropriate
+- Profile code when performance issues arise using go tool pprof
+
+## Testing
+
+- Write table-driven tests when testing multiple scenarios
+- Use testify/assert for cleaner test assertions
+- Mock external dependencies using interfaces
+- Aim for high test coverage, especially for business logic
+- Use benchmarks for performance-critical code
+
+## Project Structure
+
+- Follow standard Go project layout
+- Keep main package minimal; put business logic in separate packages
+- Use internal/ directory for private packages
+- Group related functionality into packages with clear responsibilities
+
+## Dependencies and Modules
+
+- Use Go modules for dependency management
+- Keep dependencies minimal and well-maintained
+- Prefer standard library solutions when possible
+- Use semantic versioning for your own modules
+
+## Security
+
+- Validate all inputs, especially from external sources
+- Use crypto/rand for cryptographic randomness
+- Be careful with SQL injection; use parameterized queries
+- Handle sensitive data carefully; avoid logging secrets
+
+## Gin Framework Specific (when applicable)
+
+- Use middleware for cross-cutting concerns (logging, auth, CORS)
+- Validate request payloads using struct tags
+- Return consistent JSON error responses
+- Use Gin's binding features for request parsing
+- Implement proper HTTP status codes
+- Use context for request-scoped data
+
+## Code Organization
+
+- Keep handlers thin; move business logic to service layers
+- Use dependency injection for better testability
+- Separate concerns: handlers, services, repositories
+- Use interfaces to define contracts between layers
+
+When writing code, prioritize:
+1. Correctness and reliability
+2. Readability and maintainability  
+3. Performance (when it matters)
+4. Simplicity over cleverness
+
+Always provide working, production-ready code that follows these principles.
