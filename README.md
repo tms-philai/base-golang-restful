@@ -1,84 +1,82 @@
-# Base Golang RESTful API with Gin Framework
+# Base Golang RESTful API
 
-A clean, production-ready RESTful API built with Go and the Gin web framework.
+Dự án RESTful API cơ bản được xây dựng bằng Go và Gin framework, được tùy chỉnh từ source code gốc của [gin-gonic/gin](https://github.com/gin-gonic/gin).
 
-## Features
+## 🚀 Tính năng
 
-- High-performance HTTP web framework (Gin)
-- Clean project structure
-- RESTful API endpoints
-- JSON request/response handling
-- Middleware support
-- Error handling
+- **High-performance**: Sử dụng Gin framework với hiệu suất cao
+- **RESTful API**: Các endpoint API tuân thủ chuẩn REST
+- **JSON Support**: Xử lý request/response JSON
+- **Middleware**: Hỗ trợ middleware cho logging, recovery, CORS, v.v.
+- **Validation**: Validation dữ liệu đầu vào với struct tags
+- **Multiple Formats**: Hỗ trợ JSON, XML, YAML, TOML, Protobuf
+- **Clean Architecture**: Cấu trúc code rõ ràng, dễ bảo trì
 
-## Prerequisites
+## 📋 Yêu cầu hệ thống
 
-- Go 1.19 or higher
-- Git
+- **Go**: 1.23.0 hoặc cao hơn
+- **Git**: Để clone và quản lý source code
 
-## Installation
+## 🛠️ Cài đặt
 
-1. Clone the repository:
+1. **Clone repository:**
 ```bash
 git clone <your-repository-url>
 cd base-golang-restful
 ```
 
-2. Install dependencies:
+2. **Cài đặt dependencies:**
 ```bash
 go mod tidy
 ```
 
-3. Run the application:
+3. **Chạy ứng dụng:**
 ```bash
 go run main.go
 ```
 
-The server will start on `http://localhost:8080`
+Server sẽ khởi động tại `http://localhost:8080`
 
-## API Endpoints
-
-### Health Check
-- **GET** `/ping` - Returns a simple pong response
-
-### User Management
-- **GET** `/hello/:name` - Greets a user by name
-- **POST** `/users` - Creates a new user
-
-## Example Usage
+## 📚 API Endpoints
 
 ### Health Check
-```bash
-curl http://localhost:8080/ping
+```http
+GET /ping
 ```
-
-Response:
+**Response:**
 ```json
 {
   "message": "pong"
 }
 ```
 
-### Greet User
-```bash
-curl http://localhost:8080/hello/John
+### Greeting
+```http
+GET /hello/:name
 ```
+**Parameters:**
+- `name` (string): Tên người dùng
 
-Response:
+**Response:**
 ```json
 {
   "message": "Hello John"
 }
 ```
 
-### Create User
-```bash
-curl -X POST http://localhost:8080/users \
-  -H "Content-Type: application/json" \
-  -d '{"name": "John Doe", "email": "john@example.com"}'
+### User Management
+```http
+POST /users
+```
+**Request Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
 ```
 
-Response:
+**Response:**
 ```json
 {
   "message": "User created successfully",
@@ -89,44 +87,123 @@ Response:
 }
 ```
 
-## Project Structure
+## 🧪 Test API
 
-```
-.
-├── main.go              # Application entry point
-├── go.mod              # Go module file
-├── go.sum              # Go dependencies checksum
-├── .cursorrules        # Cursor IDE rules for Go development
-├── binding/            # Request binding and validation
-├── codec/              # JSON encoding/decoding
-├── internal/           # Private application code
-├── render/             # Response rendering
-└── README.md           # This file
+### Sử dụng curl
+
+**Health Check:**
+```bash
+curl http://localhost:8080/ping
 ```
 
-## Development
+**Greeting:**
+```bash
+curl http://localhost:8080/hello/John
+```
 
-This project follows Go best practices and conventions. The `.cursorrules` file contains development guidelines for consistent code style.
+**Create User:**
+```bash
+curl -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+```
 
-### Building
+### Sử dụng Postman
+Import các endpoint trên vào Postman để test dễ dàng hơn.
 
+## 📁 Cấu trúc dự án
+
+```
+base-golang-restful/
+├── main.go                 # Entry point của ứng dụng
+├── go.mod                  # Go module dependencies
+├── go.sum                  # Checksum của dependencies
+├── .cursorrules           # Quy tắc phát triển cho Cursor IDE
+├── README.md              # Tài liệu dự án
+│
+├── binding/               # Request binding và validation
+│   ├── binding.go         # Core binding logic
+│   ├── json.go           # JSON binding
+│   ├── form.go           # Form binding
+│   ├── xml.go            # XML binding
+│   └── ...               # Các format khác
+│
+├── codec/                 # Encoding/Decoding
+│   └── json/             # JSON codec implementations
+│       ├── api.go        # JSON API interface
+│       ├── sonic.go      # Sonic JSON (high performance)
+│       └── ...           # Các implementation khác
+│
+├── render/               # Response rendering
+│   ├── json.go          # JSON rendering
+│   ├── xml.go           # XML rendering
+│   ├── html.go          # HTML rendering
+│   └── ...              # Các format khác
+│
+├── internal/            # Private packages
+│   ├── bytesconv/       # Byte conversion utilities
+│   └── fs/              # File system utilities
+│
+└── Core Gin Files       # Các file core của Gin framework
+    ├── gin.go           # Main Gin engine
+    ├── context.go       # Request context
+    ├── routergroup.go   # Router group
+    └── ...              # Các file core khác
+```
+
+## 🔧 Development
+
+### Build ứng dụng
 ```bash
 go build -o app main.go
 ```
 
-### Running
+### Chạy binary
 ```bash
 ./app
 ```
 
-## Contributing
+### Format code
+```bash
+go fmt ./...
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test your changes
-5. Submit a pull request
+### Kiểm tra lỗi
+```bash
+go vet ./...
+```
 
-## License
+## 🎯 Tính năng nâng cao
 
-This project is open source and available under the MIT License.
+Dự án này bao gồm toàn bộ source code của Gin framework, cho phép:
+
+- **Custom Middleware**: Tạo middleware tùy chỉnh
+- **Multiple Binding**: Hỗ trợ nhiều format binding (JSON, XML, Form, etc.)
+- **Custom Rendering**: Render response theo nhiều format
+- **Performance Optimization**: Tối ưu hóa hiệu suất với các codec khác nhau
+- **Extensibility**: Dễ dàng mở rộng chức năng
+
+## 📖 Tài liệu tham khảo
+
+- [Gin Documentation](https://gin-gonic.com/)
+- [Go Documentation](https://golang.org/doc/)
+- [RESTful API Design](https://restfulapi.net/)
+
+## 🤝 Đóng góp
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Tạo Pull Request
+
+## 📝 Ghi chú
+
+- Dự án này được tùy chỉnh từ source code gốc của Gin framework
+- Đã loại bỏ các file test và documentation không cần thiết
+- Bao gồm `.cursorrules` để hỗ trợ development với Cursor IDE
+- Tuân thủ Go best practices và coding conventions
+
+## 📄 License
+
+Dự án này sử dụng MIT License - xem file [LICENSE](LICENSE) để biết thêm chi tiết.
