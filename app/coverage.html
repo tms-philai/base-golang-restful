@@ -1,0 +1,275 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>tests: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">base-golang-restful-app/tests/test_helpers.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package tests
+
+import (
+        "bytes"
+        "encoding/json"
+        "net/http"
+        "net/http/httptest"
+        "testing"
+
+        "base-golang-restful-app/config"
+        "base-golang-restful-app/models"
+        "base-golang-restful-app/services"
+
+        "github.com/gin-gonic/gin"
+        "github.com/stretchr/testify/assert"
+)
+
+// TestHelper provides common testing utilities
+type TestHelper struct {
+        UserService    *services.UserService
+        ProductService *services.ProductService
+        JWTService     *services.JWTService
+        Router         *gin.Engine
+}
+
+// NewTestHelper creates a new test helper instance
+func NewTestHelper() *TestHelper <span class="cov0" title="0">{
+        // Set Gin to test mode
+        gin.SetMode(gin.TestMode)
+
+        // Create test configuration
+        cfg := &amp;config.JWTConfig{
+                SecretKey:            "test-secret-key",
+                AccessTokenDuration:  3600,
+                RefreshTokenDuration: 86400,
+                Issuer:               "test-issuer",
+        }
+
+        // Initialize services
+        userService := services.NewUserService()
+        productService := services.NewProductService()
+        jwtService := services.NewJWTService(cfg)
+
+        return &amp;TestHelper{
+                UserService:    userService,
+                ProductService: productService,
+                JWTService:     jwtService,
+                Router:         gin.New(),
+        }
+}</span>
+
+// CreateTestUser creates a test user and returns it
+func (h *TestHelper) CreateTestUser(username, email string) (*models.User, error) <span class="cov0" title="0">{
+        req := models.UserCreateRequest{
+                Username:  username,
+                Email:     email,
+                Password:  "password123",
+                FirstName: "Test",
+                LastName:  "User",
+        }
+        return h.UserService.Create(req)
+}</span>
+
+// CreateTestAdmin creates a test admin user and returns it
+func (h *TestHelper) CreateTestAdmin(username, email string) (*models.User, error) <span class="cov0" title="0">{
+        user, err := h.CreateTestUser(username, email)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">user.Role = "admin"
+        return user, nil</span>
+}
+
+// CreateTestProduct creates a test product and returns it
+func (h *TestHelper) CreateTestProduct(name, sku, createdBy string) (*models.Product, error) <span class="cov0" title="0">{
+        req := models.ProductCreateRequest{
+                Name:        name,
+                Description: "Test product description",
+                Price:       99.99,
+                Category:    "Test Category",
+                SKU:         sku,
+                Stock:       100,
+        }
+        return h.ProductService.Create(req, createdBy)
+}</span>
+
+// GenerateTestToken generates a JWT token for testing
+func (h *TestHelper) GenerateTestToken(user *models.User) (string, error) <span class="cov0" title="0">{
+        tokenPair, err := h.JWTService.GenerateTokenPair(user)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov0" title="0">return tokenPair.AccessToken, nil</span>
+}
+
+// MakeRequest makes an HTTP request for testing
+func (h *TestHelper) MakeRequest(method, url string, body interface{}, headers map[string]string) *httptest.ResponseRecorder <span class="cov0" title="0">{
+        var reqBody bytes.Buffer
+        if body != nil </span><span class="cov0" title="0">{
+                json.NewEncoder(&amp;reqBody).Encode(body)
+        }</span>
+
+        <span class="cov0" title="0">req, _ := http.NewRequest(method, url, &amp;reqBody)
+        req.Header.Set("Content-Type", "application/json")
+
+        // Add custom headers
+        for key, value := range headers </span><span class="cov0" title="0">{
+                req.Header.Set(key, value)
+        }</span>
+
+        <span class="cov0" title="0">w := httptest.NewRecorder()
+        h.Router.ServeHTTP(w, req)
+        return w</span>
+}
+
+// MakeAuthenticatedRequest makes an authenticated HTTP request
+func (h *TestHelper) MakeAuthenticatedRequest(method, url string, body interface{}, token string) *httptest.ResponseRecorder <span class="cov0" title="0">{
+        headers := map[string]string{
+                "Authorization": "Bearer " + token,
+        }
+        return h.MakeRequest(method, url, body, headers)
+}</span>
+
+// AssertJSONResponse asserts that the response contains expected JSON
+func (h *TestHelper) AssertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedBody interface{}) <span class="cov0" title="0">{
+        assert.Equal(t, expectedStatus, w.Code)
+        assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+
+        if expectedBody != nil </span><span class="cov0" title="0">{
+                var actualBody interface{}
+                err := json.Unmarshal(w.Body.Bytes(), &amp;actualBody)
+                assert.NoError(t, err)
+
+                expectedJSON, _ := json.Marshal(expectedBody)
+                var expectedBodyParsed interface{}
+                json.Unmarshal(expectedJSON, &amp;expectedBodyParsed)
+
+                assert.Equal(t, expectedBodyParsed, actualBody)
+        }</span>
+}
+
+// AssertErrorResponse asserts that the response is an error with expected message
+func (h *TestHelper) AssertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedError string) <span class="cov0" title="0">{
+        assert.Equal(t, expectedStatus, w.Code)
+
+        var errorResp models.ErrorResponse
+        err := json.Unmarshal(w.Body.Bytes(), &amp;errorResp)
+        assert.NoError(t, err)
+        assert.Equal(t, expectedError, errorResp.Error)
+}</span>
+
+// AssertSuccessResponse asserts that the response is a success with expected message
+func (h *TestHelper) AssertSuccessResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedMessage string) <span class="cov0" title="0">{
+        assert.Equal(t, expectedStatus, w.Code)
+
+        var successResp models.SuccessResponse
+        err := json.Unmarshal(w.Body.Bytes(), &amp;successResp)
+        assert.NoError(t, err)
+        assert.Equal(t, expectedMessage, successResp.Message)
+}</span>
+
+// ParseJSONResponse parses JSON response into provided struct
+func (h *TestHelper) ParseJSONResponse(w *httptest.ResponseRecorder, target interface{}) error <span class="cov0" title="0">{
+        return json.Unmarshal(w.Body.Bytes(), target)
+}</span>
+
+// CleanupTestData cleans up test data (for in-memory storage)
+func (h *TestHelper) CleanupTestData() <span class="cov0" title="0">{
+        // Reset services to clean state
+        h.UserService = services.NewUserService()
+        h.ProductService = services.NewProductService()
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
