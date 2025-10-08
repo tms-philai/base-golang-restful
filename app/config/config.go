@@ -3,7 +3,8 @@ package config
 import (
 	"fmt"
 	"log"
-	"strings"
+	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -22,45 +23,24 @@ type Config struct {
 
 var globalConfig *Config
 
-func Load(configPath string) (*Config, error) {
-	env := viper.GetString("ENV")
-	if env == "" {
-		env = "development"
+func Load(envFile string) (*Config, error) {
+	if envFile != "" {
+		if err := godotenv.Load(envFile); err != nil {
+			log.Printf("Warning: Error loading %s file: %v", envFile, err)
+		}
 	}
-
-	envFile := fmt.Sprintf(".env.%s", env)
-	if err := godotenv.Load(envFile); err != nil {
-		log.Printf("Warning: %s file not found, using environment variables", envFile)
-	}
-
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(configPath)
-	viper.AddConfigPath("./config")
-	viper.AddConfigPath(".")
 
 	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
-		}
-		log.Println("Config file not found, using environment variables only")
-	}
 
 	config := &Config{
-		Environment: env,
-	}
-
-	if err := viper.Unmarshal(config); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	setDefaults()
-
-	if err := viper.Unmarshal(config); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config with defaults: %w", err)
+		Environment: getEnv("ENVIRONMENT", "development"),
+		Server:      loadServerConfig(),
+		Database:    loadDatabaseConfig(),
+		JWT:         loadJWTConfig(),
+		Redis:       loadRedisConfig(),
+		Storage:     loadStorageConfig(),
+		Email:       loadEmailConfig(),
+		Logging:     loadLoggingConfig(),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -71,29 +51,15 @@ func Load(configPath string) (*Config, error) {
 	return config, nil
 }
 
-func setDefaults() {
-	viper.SetDefault("server.port", "8080")
-	viper.SetDefault("server.host", "0.0.0.0")
-	viper.SetDefault("server.read_timeout", 30)
-	viper.SetDefault("server.write_timeout", 30)
-	viper.SetDefault("server.shutdown_timeout", 10)
-
-	viper.SetDefault("database.port", "5432")
-	viper.SetDefault("database.sslmode", "disable")
-	viper.SetDefault("database.timezone", "UTC")
-	viper.SetDefault("database.max_open_conns", 25)
-	viper.SetDefault("database.max_idle_conns", 5)
-	viper.SetDefault("database.conn_max_lifetime", 300)
-
-	viper.SetDefault("jwt.expiration", 3600)
-	viper.SetDefault("jwt.refresh_expiration", 604800)
-
-	viper.SetDefault("redis.port", "6379")
-	viper.SetDefault("redis.db", 0)
-
-	viper.SetDefault("logging.level", "info")
-	viper.SetDefault("logging.format", "json")
-	viper.SetDefault("logging.output", "stdout")
+func Get() *Config {
+	if globalConfig == nil {
+		config, err := Load("")
+		if err != nil {
+			log.Fatalf("Failed to load config: %v", err)
+		}
+		return config
+	}
+	return globalConfig
 }
 
 func (c *Config) Validate() error {
@@ -105,14 +71,6 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("database host is required")
 	}
 
-	if c.Database.Name == "" {
-		return fmt.Errorf("database name is required")
-	}
-
-	if c.Database.User == "" {
-		return fmt.Errorf("database user is required")
-	}
-
 	if c.JWT.Secret == "" {
 		return fmt.Errorf("JWT secret is required")
 	}
@@ -120,21 +78,47 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-func Get() *Config {
-	if globalConfig == nil {
-		log.Fatal("Config not initialized. Call Load() first.")
+func (c *Config) IsDevelopment() bool {
+	return c.Environment == "development"
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Environment == "production"
+}
+
+func (c *Config) IsStaging() bool {
+	return c.Environment == "staging"
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
-	return globalConfig
+	return defaultValue
 }
 
-func IsDevelopment() bool {
-	return Get().Environment == "development"
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		var intValue int
+		fmt.Sscanf(value, "%d", &intValue)
+		return intValue
+	}
+	return defaultValue
 }
 
-func IsProduction() bool {
-	return Get().Environment == "production"
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		return value == "true" || value == "1"
+	}
+	return defaultValue
 }
 
-func IsStaging() bool {
-	return Get().Environment == "staging"
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		duration, err := time.ParseDuration(value)
+		if err == nil {
+			return duration
+		}
+	}
+	return defaultValue
 }

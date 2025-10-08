@@ -1,21 +1,25 @@
 package config
 
 type ServerConfig struct {
-	Port            string `mapstructure:"port"`
-	Host            string `mapstructure:"host"`
-	ReadTimeout     int    `mapstructure:"read_timeout"`
-	WriteTimeout    int    `mapstructure:"write_timeout"`
-	ShutdownTimeout int    `mapstructure:"shutdown_timeout"`
-	TrustedProxies  []string `mapstructure:"trusted_proxies"`
-	CORS            CORSConfig `mapstructure:"cors"`
+	Port            string
+	Host            string
+	ReadTimeout     int
+	WriteTimeout    int
+	ShutdownTimeout int
+	TrustedProxies  []string
+	EnableCORS      bool
+	CORSOrigins     []string
 }
 
-type CORSConfig struct {
-	Enabled          bool     `mapstructure:"enabled"`
-	AllowOrigins     []string `mapstructure:"allow_origins"`
-	AllowMethods     []string `mapstructure:"allow_methods"`
-	AllowHeaders     []string `mapstructure:"allow_headers"`
-	ExposeHeaders    []string `mapstructure:"expose_headers"`
-	AllowCredentials bool     `mapstructure:"allow_credentials"`
-	MaxAge           int      `mapstructure:"max_age"`
+func loadServerConfig() ServerConfig {
+	return ServerConfig{
+		Port:            getEnv("SERVER_PORT", "8080"),
+		Host:            getEnv("SERVER_HOST", "0.0.0.0"),
+		ReadTimeout:     getEnvInt("SERVER_READ_TIMEOUT", 60),
+		WriteTimeout:    getEnvInt("SERVER_WRITE_TIMEOUT", 60),
+		ShutdownTimeout: getEnvInt("SERVER_SHUTDOWN_TIMEOUT", 30),
+		TrustedProxies:  []string{},
+		EnableCORS:      getEnvBool("SERVER_ENABLE_CORS", true),
+		CORSOrigins:     []string{"*"},
+	}
 }

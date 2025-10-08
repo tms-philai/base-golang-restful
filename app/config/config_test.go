@@ -5,47 +5,36 @@ import (
 	"testing"
 )
 
-func TestSetDefaults(t *testing.T) {
-	setDefaults()
+func TestLoad(t *testing.T) {
+	os.Setenv("ENVIRONMENT", "test")
+	os.Setenv("SERVER_PORT", "9090")
+	os.Setenv("DB_HOST", "testhost")
+	os.Setenv("JWT_SECRET", "test-secret")
+
+	config, err := Load("")
+	if err != nil {
+		t.Errorf("Load failed: %v", err)
+	}
+
+	if config.Environment != "test" {
+		t.Errorf("Expected environment 'test', got '%s'", config.Environment)
+	}
+
+	if config.Server.Port != "9090" {
+		t.Errorf("Expected port '9090', got '%s'", config.Server.Port)
+	}
+
+	if config.Database.Host != "testhost" {
+		t.Errorf("Expected DB host 'testhost', got '%s'", config.Database.Host)
+	}
+
+	os.Unsetenv("ENVIRONMENT")
+	os.Unsetenv("SERVER_PORT")
+	os.Unsetenv("DB_HOST")
+	os.Unsetenv("JWT_SECRET")
 }
 
-func TestIsDevelopment(t *testing.T) {
-	globalConfig = &Config{Environment: "development"}
-	if !IsDevelopment() {
-		t.Error("Expected IsDevelopment to return true")
-	}
-
-	globalConfig = &Config{Environment: "production"}
-	if IsDevelopment() {
-		t.Error("Expected IsDevelopment to return false")
-	}
-}
-
-func TestIsProduction(t *testing.T) {
-	globalConfig = &Config{Environment: "production"}
-	if !IsProduction() {
-		t.Error("Expected IsProduction to return true")
-	}
-
-	globalConfig = &Config{Environment: "development"}
-	if IsProduction() {
-		t.Error("Expected IsProduction to return false")
-	}
-}
-
-func TestIsStaging(t *testing.T) {
-	globalConfig = &Config{Environment: "staging"}
-	if !IsStaging() {
-		t.Error("Expected IsStaging to return true")
-	}
-
-	globalConfig = &Config{Environment: "development"}
-	if IsStaging() {
-		t.Error("Expected IsStaging to return false")
-	}
-}
-
-func TestConfigValidation(t *testing.T) {
+func TestConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  *Config
@@ -54,72 +43,59 @@ func TestConfigValidation(t *testing.T) {
 		{
 			name: "Valid config",
 			config: &Config{
-				Server: ServerConfig{Port: "8080"},
+				Server: ServerConfig{
+					Port: "8080",
+				},
 				Database: DatabaseConfig{
 					Host: "localhost",
-					Name: "testdb",
-					User: "testuser",
 				},
-				JWT: JWTConfig{Secret: "test-secret"},
+				JWT: JWTConfig{
+					Secret: "secret",
+				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "Missing server port",
 			config: &Config{
+				Server: ServerConfig{
+					Port: "",
+				},
 				Database: DatabaseConfig{
 					Host: "localhost",
-					Name: "testdb",
-					User: "testuser",
 				},
-				JWT: JWTConfig{Secret: "test-secret"},
+				JWT: JWTConfig{
+					Secret: "secret",
+				},
 			},
 			wantErr: true,
 		},
 		{
 			name: "Missing database host",
 			config: &Config{
-				Server: ServerConfig{Port: "8080"},
-				Database: DatabaseConfig{
-					Name: "testdb",
-					User: "testuser",
+				Server: ServerConfig{
+					Port: "8080",
 				},
-				JWT: JWTConfig{Secret: "test-secret"},
-			},
-			wantErr: true,
-		},
-		{
-			name: "Missing database name",
-			config: &Config{
-				Server: ServerConfig{Port: "8080"},
 				Database: DatabaseConfig{
-					Host: "localhost",
-					User: "testuser",
+					Host: "",
 				},
-				JWT: JWTConfig{Secret: "test-secret"},
-			},
-			wantErr: true,
-		},
-		{
-			name: "Missing database user",
-			config: &Config{
-				Server: ServerConfig{Port: "8080"},
-				Database: DatabaseConfig{
-					Host: "localhost",
-					Name: "testdb",
+				JWT: JWTConfig{
+					Secret: "secret",
 				},
-				JWT: JWTConfig{Secret: "test-secret"},
 			},
 			wantErr: true,
 		},
 		{
 			name: "Missing JWT secret",
 			config: &Config{
-				Server: ServerConfig{Port: "8080"},
+				Server: ServerConfig{
+					Port: "8080",
+				},
 				Database: DatabaseConfig{
 					Host: "localhost",
-					Name: "testdb",
-					User: "testuser",
+				},
+				JWT: JWTConfig{
+					Secret: "",
 				},
 			},
 			wantErr: true,
@@ -136,40 +112,99 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
-	globalConfig = &Config{
-		Environment: "test",
+func TestConfig_IsDevelopment(t *testing.T) {
+	config := &Config{Environment: "development"}
+	if !config.IsDevelopment() {
+		t.Error("Expected IsDevelopment() to return true")
 	}
 
-	config := Get()
-	if config.Environment != "test" {
-		t.Errorf("Expected environment 'test', got '%s'", config.Environment)
+	config.Environment = "production"
+	if config.IsDevelopment() {
+		t.Error("Expected IsDevelopment() to return false")
 	}
 }
 
-func TestLoad_WithEnvironmentVariables(t *testing.T) {
-	os.Setenv("SERVER_PORT", "9090")
-	os.Setenv("DB_HOST", "testhost")
-	os.Setenv("DB_NAME", "testdb")
-	os.Setenv("DB_USER", "testuser")
-	os.Setenv("JWT_SECRET", "test-secret")
-
-	defer func() {
-		os.Unsetenv("SERVER_PORT")
-		os.Unsetenv("DB_HOST")
-		os.Unsetenv("DB_NAME")
-		os.Unsetenv("DB_USER")
-		os.Unsetenv("JWT_SECRET")
-	}()
-
-	config, err := Load("./nonexistent")
-	if err != nil {
-		t.Logf("Load returned error (expected if no config file): %v", err)
+func TestConfig_IsProduction(t *testing.T) {
+	config := &Config{Environment: "production"}
+	if !config.IsProduction() {
+		t.Error("Expected IsProduction() to return true")
 	}
 
-	if config != nil {
-		if config.Server.Port != "9090" {
-			t.Errorf("Expected port 9090, got %s", config.Server.Port)
-		}
+	config.Environment = "development"
+	if config.IsProduction() {
+		t.Error("Expected IsProduction() to return false")
+	}
+}
+
+func TestConfig_IsStaging(t *testing.T) {
+	config := &Config{Environment: "staging"}
+	if !config.IsStaging() {
+		t.Error("Expected IsStaging() to return true")
+	}
+
+	config.Environment = "production"
+	if config.IsStaging() {
+		t.Error("Expected IsStaging() to return false")
+	}
+}
+
+func TestGetEnv(t *testing.T) {
+	os.Setenv("TEST_KEY", "test_value")
+	defer os.Unsetenv("TEST_KEY")
+
+	value := getEnv("TEST_KEY", "default")
+	if value != "test_value" {
+		t.Errorf("Expected 'test_value', got '%s'", value)
+	}
+
+	value = getEnv("NON_EXISTENT_KEY", "default")
+	if value != "default" {
+		t.Errorf("Expected 'default', got '%s'", value)
+	}
+}
+
+func TestGetEnvInt(t *testing.T) {
+	os.Setenv("TEST_INT", "42")
+	defer os.Unsetenv("TEST_INT")
+
+	value := getEnvInt("TEST_INT", 10)
+	if value != 42 {
+		t.Errorf("Expected 42, got %d", value)
+	}
+
+	value = getEnvInt("NON_EXISTENT_INT", 10)
+	if value != 10 {
+		t.Errorf("Expected 10, got %d", value)
+	}
+}
+
+func TestGetEnvBool(t *testing.T) {
+	tests := []struct {
+		name     string
+		envValue string
+		expected bool
+	}{
+		{"true value", "true", true},
+		{"1 value", "1", true},
+		{"false value", "false", false},
+		{"0 value", "0", false},
+		{"other value", "other", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("TEST_BOOL", tt.envValue)
+			defer os.Unsetenv("TEST_BOOL")
+
+			value := getEnvBool("TEST_BOOL", false)
+			if value != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, value)
+			}
+		})
+	}
+
+	value := getEnvBool("NON_EXISTENT_BOOL", true)
+	if !value {
+		t.Error("Expected true for default value")
 	}
 }

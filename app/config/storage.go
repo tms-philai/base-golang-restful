@@ -1,23 +1,23 @@
 package config
 
 type StorageConfig struct {
-	Provider     string      `mapstructure:"provider"`
-	Local        LocalConfig `mapstructure:"local"`
-	GCS          GCSConfig   `mapstructure:"gcs"`
-	MaxFileSize  int64       `mapstructure:"max_file_size"`
-	AllowedTypes []string    `mapstructure:"allowed_types"`
+	Provider    string
+	LocalPath   string
+	GCSBucket   string
+	GCSProject  string
+	S3Bucket    string
+	S3Region    string
+	MaxFileSize int64
 }
 
-type LocalConfig struct {
-	Path      string `mapstructure:"path"`
-	PublicURL string `mapstructure:"public_url"`
-}
-
-type GCSConfig struct {
-	ProjectID           string `mapstructure:"project_id"`
-	Bucket              string `mapstructure:"bucket"`
-	CredentialsFile     string `mapstructure:"credentials_file"`
-	CredentialsJSON     string `mapstructure:"credentials_json"`
-	PublicURL           string `mapstructure:"public_url"`
-	SignedURLExpiration int    `mapstructure:"signed_url_expiration"`
+func loadStorageConfig() StorageConfig {
+	return StorageConfig{
+		Provider:    getEnv("STORAGE_PROVIDER", "local"),
+		LocalPath:   getEnv("STORAGE_LOCAL_PATH", "./uploads"),
+		GCSBucket:   getEnv("STORAGE_GCS_BUCKET", ""),
+		GCSProject:  getEnv("STORAGE_GCS_PROJECT", ""),
+		S3Bucket:    getEnv("STORAGE_S3_BUCKET", ""),
+		S3Region:    getEnv("STORAGE_S3_REGION", "us-east-1"),
+		MaxFileSize: int64(getEnvInt("STORAGE_MAX_FILE_SIZE", 10485760)),
+	}
 }
