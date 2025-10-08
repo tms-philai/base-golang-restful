@@ -1,184 +1,155 @@
 package middleware
 
 import (
-	"errors"
 	"net/http"
+	"strings"
 
-	"base-golang-restful-app/models"
-	"base-golang-restful-app/services"
+	"base-golang-restful/app/auth"
+	appErrors "base-golang-restful/app/errors"
+	"base-golang-restful/app/i18n"
 
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware creates authentication middleware
-func AuthMiddleware(jwtService *services.JWTService, userService *services.UserService) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		
-		// Extract token from header
-		token, err := jwtService.ExtractTokenFromHeader(authHeader)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error:   "unauthorized",
-				Message: err.Error(),
-			})
-			c.Abort()
-			return
-		}
+type AuthMiddleware struct {
+	jwtManager *auth.JWTManager
+}
 
-		// Validate token
-		claims, err := jwtService.ValidateToken(token)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error:   "unauthorized",
-				Message: "invalid or expired token",
-			})
-			c.Abort()
-			return
-		}
-
-		// Get user from database to ensure user still exists and is active
-		user, err := userService.GetByID(claims.UserID)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error:   "unauthorized",
-				Message: "user not found",
-			})
-			c.Abort()
-			return
-		}
-
-		if !user.IsActive {
-			c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error:   "unauthorized",
-				Message: "user account is inactive",
-			})
-			c.Abort()
-			return
-		}
-
-		// Set user information in context
-		c.Set("user_id", user.ID)
-		c.Set("user", user)
-		c.Set("claims", claims)
-
-		c.Next()
+func NewAuthMiddleware(jwtManager *auth.JWTManager) *AuthMiddleware {
+	return &AuthMiddleware{
+		jwtManager: jwtManager,
 	}
 }
 
-// OptionalAuthMiddleware creates optional authentication middleware
-// This middleware will set user context if token is provided and valid,
-// but won't abort if no token is provided
-func OptionalAuthMiddleware(jwtService *services.JWTService, userService *services.UserService) gin.HandlerFunc {
+func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		
-		if authHeader == "" {
-			c.Next()
-			return
-		}
-
-		// Extract token from header
-		token, err := jwtService.ExtractTokenFromHeader(authHeader)
-		if err != nil {
-			c.Next()
-			return
-		}
-
-		// Validate token
-		claims, err := jwtService.ValidateToken(token)
-		if err != nil {
-			c.Next()
-			return
-		}
-
-		// Get user from database
-		user, err := userService.GetByID(claims.UserID)
-		if err != nil || !user.IsActive {
-			c.Next()
-			return
-		}
-
-		// Set user information in context
-		c.Set("user_id", user.ID)
-		c.Set("user", user)
-		c.Set("claims", claims)
-
-		c.Next()
-	}
-}
-
-// RequireRole creates role-based authorization middleware
-func RequireRole(roles ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user, exists := c.Get("user")
-		if !exists {
-			c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-				Error:   "unauthorized",
-				Message: "authentication required",
-			})
+		token := extractToken(c)
+		if token == "" {
+			lang := i18n.GetLanguage(c)
+			_ = c.Error(appErrors.LocalizedUnauthorized("auth.token_invalid", nil).Localize(lang))
 			c.Abort()
 			return
 		}
 
-		userModel, ok := user.(*models.User)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse{
-				Error:   "internal_error",
-				Message: "invalid user context",
-			})
-			c.Abort()
-			return
-		}
+		claims, err := m.jwtManager.ValidateToken(token, auth.AccessToken)
+		if err != nil {
+			lang := i18n.GetLanguage(c)
+			var localizedErr *appErrors.AppError
 
-		// Check if user has required role
-		hasRole := false
-		for _, role := range roles {
-			if userModel.Role == role {
-				hasRole = true
-				break
+			switch err {
+			case auth.ErrExpiredToken:
+				localizedErr = appErrors.LocalizedUnauthorized("auth.token_expired", nil).Localize(lang)
+			case auth.ErrInvalidSignature, auth.ErrMissingClaims:
+				localizedErr = appErrors.LocalizedUnauthorized("auth.token_invalid", nil).Localize(lang)
+			default:
+				localizedErr = appErrors.LocalizedUnauthorized("auth.token_invalid", nil).Localize(lang)
 			}
-		}
 
-		if !hasRole {
-			c.JSON(http.StatusForbidden, models.ErrorResponse{
-				Error:   "forbidden",
-				Message: "insufficient permissions",
-			})
+			_ = c.Error(localizedErr)
 			c.Abort()
 			return
 		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("user_email", claims.Email)
+		c.Set("token_claims", claims)
 
 		c.Next()
 	}
 }
 
-// GetCurrentUser gets the current authenticated user from context
-func GetCurrentUser(c *gin.Context) (*models.User, error) {
-	user, exists := c.Get("user")
-	if !exists {
-		return nil, errors.New("user not found in context")
-	}
+func (m *AuthMiddleware) OptionalAuthenticate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := extractToken(c)
+		if token == "" {
+			c.Next()
+			return
+		}
 
-	userModel, ok := user.(*models.User)
-	if !ok {
-		return nil, errors.New("invalid user type in context")
-	}
+		claims, err := m.jwtManager.ValidateToken(token, auth.AccessToken)
+		if err != nil {
+			c.Next()
+			return
+		}
 
-	return userModel, nil
+		c.Set("user_id", claims.UserID)
+		c.Set("user_email", claims.Email)
+		c.Set("token_claims", claims)
+
+		c.Next()
+	}
 }
 
-// GetCurrentUserID gets the current authenticated user ID from context
-func GetCurrentUserID(c *gin.Context) (string, error) {
+func extractToken(c *gin.Context) string {
+	bearerToken := c.GetHeader("Authorization")
+	if bearerToken != "" {
+		parts := strings.SplitN(bearerToken, " ", 2)
+		if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+			return parts[1]
+		}
+	}
+
+	tokenQuery := c.Query("token")
+	if tokenQuery != "" {
+		return tokenQuery
+	}
+
+	tokenCookie, err := c.Cookie("access_token")
+	if err == nil && tokenCookie != "" {
+		return tokenCookie
+	}
+
+	return ""
+}
+
+func GetUserID(c *gin.Context) (string, bool) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		return "", errors.New("user ID not found in context")
+		return "", false
 	}
 
 	userIDStr, ok := userID.(string)
 	if !ok {
-		return "", errors.New("invalid user ID type in context")
+		return "", false
 	}
 
-	return userIDStr, nil
+	return userIDStr, true
+}
+
+func GetUserEmail(c *gin.Context) (string, bool) {
+	email, exists := c.Get("user_email")
+	if !exists {
+		return "", false
+	}
+
+	emailStr, ok := email.(string)
+	if !ok {
+		return "", false
+	}
+
+	return emailStr, true
+}
+
+func GetTokenClaims(c *gin.Context) (*auth.JWTClaims, bool) {
+	claims, exists := c.Get("token_claims")
+	if !exists {
+		return nil, false
+	}
+
+	jwtClaims, ok := claims.(*auth.JWTClaims)
+	if !ok {
+		return nil, false
+	}
+
+	return jwtClaims, true
+}
+
+func RequireAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
+	middleware := NewAuthMiddleware(jwtManager)
+	return middleware.Authenticate()
+}
+
+func OptionalAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
+	middleware := NewAuthMiddleware(jwtManager)
+	return middleware.OptionalAuthenticate()
 }
