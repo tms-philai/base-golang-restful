@@ -1,0 +1,268 @@
+package services
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"base-golang-restful/app/models"
+	"base-golang-restful/app/repository"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+type FileService struct {
+	*BaseService
+	fileRepo      repository.BaseRepository[models.File]
+	validator     *FileValidator
+	uploadDir     string
+	baseURL       string
+}
+
+type FileServiceConfig struct {
+	DB        *gorm.DB
+	FileRepo  repository.BaseRepository[models.File]
+	Validator *FileValidator
+	UploadDir string
+	BaseURL   string
+}
+
+func NewFileService(config FileServiceConfig) *FileService {
+	if config.UploadDir == "" {
+		config.UploadDir = "./uploads"
+	}
+	if config.BaseURL == "" {
+		config.BaseURL = "http://localhost:8080"
+	}
+	if config.Validator == nil {
+		config.Validator = NewFileValidator(FileValidationConfig{
+			MaxFileSize: 10 * 1024 * 1024, // 10MB
+		})
+	}
+
+	return &FileService{
+		BaseService: NewBaseService(config.DB),
+		fileRepo:    config.FileRepo,
+		validator:   config.Validator,
+		uploadDir:   config.UploadDir,
+		baseURL:     config.BaseURL,
+	}
+}
+
+type UploadFileInput struct {
+	FileHeader *multipart.FileHeader
+	UploadedBy *uuid.UUID
+	IsPublic   bool
+	Metadata   string
+}
+
+type UploadFileResult struct {
+	File *models.File
+	URL  string
+}
+
+func (s *FileService) UploadFile(ctx context.Context, input UploadFileInput) (*UploadFileResult, error) {
+	if err := s.validator.ValidateFile(input.FileHeader); err != nil {
+		return nil, err
+	}
+
+	file, err := input.FileHeader.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	mimeType, err := DetectMimeType(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect mime type: %w", err)
+	}
+
+	if err := s.validator.ValidateFileContent(file, mimeType); err != nil {
+		return nil, err
+	}
+
+	fileName, err := s.generateUniqueFileName(input.FileHeader.Filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate file name: %w", err)
+	}
+
+	subDir := s.getSubDirectory()
+	fullUploadDir := filepath.Join(s.uploadDir, subDir)
+	
+	if err := os.MkdirAll(fullUploadDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create upload directory: %w", err)
+	}
+
+	filePath := filepath.Join(fullUploadDir, fileName)
+	
+	if err := s.saveFile(file, filePath); err != nil {
+		return nil, fmt.Errorf("failed to save file: %w", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(input.FileHeader.Filename))
+	relativePath := filepath.Join(subDir, fileName)
+	fileURL := s.generateFileURL(relativePath)
+
+	fileModel := &models.File{
+		OriginalName: input.FileHeader.Filename,
+		FileName:     fileName,
+		FilePath:     relativePath,
+		FileSize:     input.FileHeader.Size,
+		MimeType:     mimeType,
+		Extension:    ext,
+		StorageType:  models.StorageTypeLocal,
+		URL:          fileURL,
+		UploadedBy:   input.UploadedBy,
+		IsPublic:     input.IsPublic,
+		Metadata:     input.Metadata,
+	}
+
+	if err := s.fileRepo.Create(ctx, fileModel); err != nil {
+		_ = os.Remove(filePath)
+		return nil, fmt.Errorf("failed to save file metadata: %w", err)
+	}
+
+	return &UploadFileResult{
+		File: fileModel,
+		URL:  fileURL,
+	}, nil
+}
+
+func (s *FileService) UploadMultipleFiles(ctx context.Context, fileHeaders []*multipart.FileHeader, uploadedBy *uuid.UUID, isPublic bool) ([]*UploadFileResult, error) {
+	results := make([]*UploadFileResult, 0, len(fileHeaders))
+	
+	for _, fileHeader := range fileHeaders {
+		result, err := s.UploadFile(ctx, UploadFileInput{
+			FileHeader: fileHeader,
+			UploadedBy: uploadedBy,
+			IsPublic:   isPublic,
+		})
+		
+		if err != nil {
+			return results, err
+		}
+		
+		results = append(results, result)
+	}
+	
+	return results, nil
+}
+
+func (s *FileService) GetFile(ctx context.Context, fileID uuid.UUID) (*models.File, error) {
+	return s.fileRepo.FindByID(ctx, fileID)
+}
+
+func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID) error {
+	file, err := s.fileRepo.FindByID(ctx, fileID)
+	if err != nil {
+		return err
+	}
+
+	if file.StorageType == models.StorageTypeLocal {
+		fullPath := filepath.Join(s.uploadDir, file.FilePath)
+		if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete physical file: %w", err)
+		}
+	}
+
+	if err := s.fileRepo.Delete(ctx, fileID); err != nil {
+		return fmt.Errorf("failed to delete file metadata: %w", err)
+	}
+
+	return nil
+}
+
+func (s *FileService) GetFilesByUser(ctx context.Context, userID uuid.UUID) ([]models.File, error) {
+	var files []models.File
+	err := s.db.WithContext(ctx).
+		Where("uploaded_by = ?", userID).
+		Order("created_at DESC").
+		Find(&files).Error
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return files, nil
+}
+
+func (s *FileService) generateUniqueFileName(originalName string) (string, error) {
+	ext := filepath.Ext(originalName)
+	nameWithoutExt := strings.TrimSuffix(originalName, ext)
+	
+	timestamp := time.Now().UnixNano()
+	hash := sha256.New()
+	hash.Write([]byte(fmt.Sprintf("%s-%d", nameWithoutExt, timestamp)))
+	hashStr := hex.EncodeToString(hash.Sum(nil))[:16]
+	
+	return fmt.Sprintf("%s-%s%s", nameWithoutExt, hashStr, ext), nil
+}
+
+func (s *FileService) getSubDirectory() string {
+	now := time.Now()
+	return filepath.Join(
+		fmt.Sprintf("%d", now.Year()),
+		fmt.Sprintf("%02d", now.Month()),
+		fmt.Sprintf("%02d", now.Day()),
+	)
+}
+
+func (s *FileService) generateFileURL(relativePath string) string {
+	cleanPath := filepath.ToSlash(relativePath)
+	return fmt.Sprintf("%s/uploads/%s", s.baseURL, cleanPath)
+}
+
+func (s *FileService) saveFile(src multipart.File, dst string) error {
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, src); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *FileService) GetFileContent(ctx context.Context, fileID uuid.UUID) ([]byte, error) {
+	file, err := s.fileRepo.FindByID(ctx, fileID)
+	if err != nil {
+		return nil, err
+	}
+
+	if file.StorageType != models.StorageTypeLocal {
+		return nil, errors.New("only local files can be read directly")
+	}
+
+	fullPath := filepath.Join(s.uploadDir, file.FilePath)
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return content, nil
+}
+
+func (s *FileService) GetFilePath(ctx context.Context, fileID uuid.UUID) (string, error) {
+	file, err := s.fileRepo.FindByID(ctx, fileID)
+	if err != nil {
+		return "", err
+	}
+
+	if file.StorageType != models.StorageTypeLocal {
+		return "", errors.New("only local files have physical paths")
+	}
+
+	return filepath.Join(s.uploadDir, file.FilePath), nil
+}
