@@ -1,0 +1,75 @@
+{
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "created": "Created successfully",
+    "updated": "Updated successfully",
+    "deleted": "Deleted successfully",
+    "not_found": "Resource not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "bad_request": "Bad request",
+    "internal_error": "Internal server error",
+    "validation_error": "Validation error"
+  },
+  "validation": {
+    "required": "{{.Field}} is required",
+    "invalid": "{{.Field}} is invalid",
+    "min_length": "{{.Field}} must be at least {{.Min}} characters",
+    "max_length": "{{.Field}} must not exceed {{.Max}} characters",
+    "email": "{{.Field}} must be a valid email address",
+    "numeric": "{{.Field}} must be a number",
+    "alpha": "{{.Field}} must contain only letters",
+    "alphanumeric": "{{.Field}} must contain only letters and numbers",
+    "url": "{{.Field}} must be a valid URL",
+    "uuid": "{{.Field}} must be a valid UUID",
+    "min": "{{.Field}} must be at least {{.Min}}",
+    "max": "{{.Field}} must not exceed {{.Max}}",
+    "between": "{{.Field}} must be between {{.Min}} and {{.Max}}",
+    "in": "{{.Field}} must be one of: {{.Values}}",
+    "unique": "{{.Field}} already exists",
+    "exists": "{{.Field}} does not exist"
+  },
+  "auth": {
+    "login_success": "Login successful",
+    "logout_success": "Logout successful",
+    "register_success": "Registration successful",
+    "invalid_credentials": "Invalid email or password",
+    "email_exists": "Email already exists",
+    "token_expired": "Token has expired",
+    "token_invalid": "Invalid token",
+    "password_reset_sent": "Password reset email sent",
+    "password_reset_success": "Password reset successful",
+    "password_changed": "Password changed successfully",
+    "account_locked": "Account is locked",
+    "account_inactive": "Account is inactive",
+    "email_not_verified": "Email not verified"
+  },
+  "user": {
+    "profile_updated": "Profile updated successfully",
+    "user_not_found": "User not found",
+    "user_created": "User created successfully",
+    "user_deleted": "User deleted successfully",
+    "avatar_updated": "Avatar updated successfully",
+    "invalid_password": "Invalid current password"
+  },
+  "pagination": {
+    "invalid_page": "Invalid page number",
+    "invalid_limit": "Invalid limit value",
+    "invalid_cursor": "Invalid cursor value"
+  },
+  "file": {
+    "upload_success": "File uploaded successfully",
+    "upload_failed": "File upload failed",
+    "invalid_format": "Invalid file format",
+    "too_large": "File size exceeds limit of {{.MaxSize}}MB",
+    "not_found": "File not found",
+    "delete_success": "File deleted successfully"
+  },
+  "database": {
+    "connection_error": "Database connection error",
+    "query_error": "Database query error",
+    "transaction_error": "Transaction error",
+    "constraint_violation": "Database constraint violation"
+  }
+}
