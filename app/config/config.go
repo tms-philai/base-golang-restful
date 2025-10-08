@@ -1,108 +1,140 @@
 package config
 
 import (
-	"os"
-	"strconv"
-	"time"
+	"fmt"
+	"log"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
-// Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	JWT      JWTConfig
-	Database DatabaseConfig
+	Environment string
+	Server      ServerConfig
+	Database    DatabaseConfig
+	JWT         JWTConfig
+	Redis       RedisConfig
+	Storage     StorageConfig
+	Email       EmailConfig
+	Logging     LoggingConfig
 }
 
-// ServerConfig holds server configuration
-type ServerConfig struct {
-	Port         string
-	Host         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-}
+var globalConfig *Config
 
-// JWTConfig holds JWT configuration
-type JWTConfig struct {
-	SecretKey            string
-	AccessTokenDuration  time.Duration
-	RefreshTokenDuration time.Duration
-	Issuer               string
-}
-
-// DatabaseConfig holds database configuration
-type DatabaseConfig struct {
-	Driver   string
-	Host     string
-	Port     string
-	Username string
-	Password string
-	Database string
-	SSLMode  string
-}
-
-// Load loads configuration from environment variables with defaults
-func Load() *Config {
-	return &Config{
-		Server: ServerConfig{
-			Port:         getEnv("SERVER_PORT", "8080"),
-			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
-			ReadTimeout:  getDurationEnv("SERVER_READ_TIMEOUT", 10*time.Second),
-			WriteTimeout: getDurationEnv("SERVER_WRITE_TIMEOUT", 10*time.Second),
-			IdleTimeout:  getDurationEnv("SERVER_IDLE_TIMEOUT", 60*time.Second),
-		},
-		JWT: JWTConfig{
-			SecretKey:            getEnv("JWT_SECRET_KEY", "your-super-secret-jwt-key-change-in-production"),
-			AccessTokenDuration:  getDurationEnv("JWT_ACCESS_TOKEN_DURATION", 15*time.Minute),
-			RefreshTokenDuration: getDurationEnv("JWT_REFRESH_TOKEN_DURATION", 7*24*time.Hour),
-			Issuer:               getEnv("JWT_ISSUER", "base-golang-restful-app"),
-		},
-		Database: DatabaseConfig{
-			Driver:   getEnv("DB_DRIVER", "postgres"),
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			Username: getEnv("DB_USERNAME", "postgres"),
-			Password: getEnv("DB_PASSWORD", "password"),
-			Database: getEnv("DB_DATABASE", "restful_api"),
-			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
-		},
+func Load(configPath string) (*Config, error) {
+	env := viper.GetString("ENV")
+	if env == "" {
+		env = "development"
 	}
-}
 
-// getEnv gets environment variable with default value
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+	envFile := fmt.Sprintf(".env.%s", env)
+	if err := godotenv.Load(envFile); err != nil {
+		log.Printf("Warning: %s file not found, using environment variables", envFile)
 	}
-	return defaultValue
-}
 
-// getDurationEnv gets duration environment variable with default value
-func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
-	if value := os.Getenv(key); value != "" {
-		if duration, err := time.ParseDuration(value); err == nil {
-			return duration
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(configPath)
+	viper.AddConfigPath("./config")
+	viper.AddConfigPath(".")
+
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
 		}
+		log.Println("Config file not found, using environment variables only")
 	}
-	return defaultValue
+
+	config := &Config{
+		Environment: env,
+	}
+
+	if err := viper.Unmarshal(config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	setDefaults()
+
+	if err := viper.Unmarshal(config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config with defaults: %w", err)
+	}
+
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
+	globalConfig = config
+	return config, nil
 }
 
-// getIntEnv gets integer environment variable with default value
-func getIntEnv(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
+func setDefaults() {
+	viper.SetDefault("server.port", "8080")
+	viper.SetDefault("server.host", "0.0.0.0")
+	viper.SetDefault("server.read_timeout", 30)
+	viper.SetDefault("server.write_timeout", 30)
+	viper.SetDefault("server.shutdown_timeout", 10)
+
+	viper.SetDefault("database.port", "5432")
+	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("database.timezone", "UTC")
+	viper.SetDefault("database.max_open_conns", 25)
+	viper.SetDefault("database.max_idle_conns", 5)
+	viper.SetDefault("database.conn_max_lifetime", 300)
+
+	viper.SetDefault("jwt.expiration", 3600)
+	viper.SetDefault("jwt.refresh_expiration", 604800)
+
+	viper.SetDefault("redis.port", "6379")
+	viper.SetDefault("redis.db", 0)
+
+	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("logging.format", "json")
+	viper.SetDefault("logging.output", "stdout")
 }
 
-// getBoolEnv gets boolean environment variable with default value
-func getBoolEnv(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if boolValue, err := strconv.ParseBool(value); err == nil {
-			return boolValue
-		}
+func (c *Config) Validate() error {
+	if c.Server.Port == "" {
+		return fmt.Errorf("server port is required")
 	}
-	return defaultValue
+
+	if c.Database.Host == "" {
+		return fmt.Errorf("database host is required")
+	}
+
+	if c.Database.Name == "" {
+		return fmt.Errorf("database name is required")
+	}
+
+	if c.Database.User == "" {
+		return fmt.Errorf("database user is required")
+	}
+
+	if c.JWT.Secret == "" {
+		return fmt.Errorf("JWT secret is required")
+	}
+
+	return nil
+}
+
+func Get() *Config {
+	if globalConfig == nil {
+		log.Fatal("Config not initialized. Call Load() first.")
+	}
+	return globalConfig
+}
+
+func IsDevelopment() bool {
+	return Get().Environment == "development"
+}
+
+func IsProduction() bool {
+	return Get().Environment == "production"
+}
+
+func IsStaging() bool {
+	return Get().Environment == "staging"
 }
