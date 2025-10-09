@@ -3,14 +3,13 @@ package repository
 import (
 	"context"
 
-	"base-golang-restful/app/models"
+	"base-golang-restful-app/models"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type PermissionRepository interface {
-	BaseRepository[models.Permission]
 	FindByName(ctx context.Context, name string) (*models.Permission, error)
 	FindByResource(ctx context.Context, resource string) ([]models.Permission, error)
 	FindByResourceAndAction(ctx context.Context, resource, action string) (*models.Permission, error)
@@ -19,12 +18,12 @@ type PermissionRepository interface {
 }
 
 type permissionRepository struct {
-	*GormRepository[models.Permission]
+	db *gorm.DB
 }
 
 func NewPermissionRepository(db *gorm.DB) PermissionRepository {
 	return &permissionRepository{
-		GormRepository: NewGormRepository[models.Permission](db),
+		db: db,
 	}
 }
 

@@ -1,12 +1,11 @@
 package middleware
 
 import (
-	"net/http"
 	"strings"
 
-	"base-golang-restful/app/auth"
-	appErrors "base-golang-restful/app/errors"
-	"base-golang-restful/app/i18n"
+	"base-golang-restful-app/auth"
+	appErrors "base-golang-restful-app/errors"
+	"base-golang-restful-app/i18n"
 
 	"github.com/gin-gonic/gin"
 )
@@ -142,14 +141,4 @@ func GetTokenClaims(c *gin.Context) (*auth.JWTClaims, bool) {
 	}
 
 	return jwtClaims, true
-}
-
-func RequireAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
-	middleware := NewAuthMiddleware(jwtManager)
-	return middleware.Authenticate()
-}
-
-func OptionalAuth(jwtManager *auth.JWTManager) gin.HandlerFunc {
-	middleware := NewAuthMiddleware(jwtManager)
-	return middleware.OptionalAuthenticate()
 }

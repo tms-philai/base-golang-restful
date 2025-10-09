@@ -1,7 +1,7 @@
 package errors
 
 import (
-	"base-golang-restful/app/i18n"
+	"base-golang-restful-app/i18n"
 )
 
 type LocalizedError struct {

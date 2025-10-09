@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"base-golang-restful/app/models"
-	"base-golang-restful/app/repository"
+	"base-golang-restful-app/models"
+	"base-golang-restful-app/repository"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

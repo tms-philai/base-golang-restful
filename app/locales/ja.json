@@ -1,0 +1,75 @@
+{
+  "common": {
+    "success": "成功",
+    "error": "エラー",
+    "created": "作成に成功しました",
+    "updated": "更新に成功しました",
+    "deleted": "削除に成功しました",
+    "not_found": "リソースが見つかりません",
+    "unauthorized": "認証されていません",
+    "forbidden": "アクセス権限がありません",
+    "bad_request": "無効なリクエスト",
+    "internal_error": "内部サーバーエラー",
+    "validation_error": "検証エラー"
+  },
+  "validation": {
+    "required": "{{.Field}}は必須です",
+    "invalid": "{{.Field}}が無効です",
+    "min_length": "{{.Field}}は最低{{.Min}}文字必要です",
+    "max_length": "{{.Field}}は{{.Max}}文字を超えてはいけません",
+    "email": "{{.Field}}は有効なメールアドレスである必要があります",
+    "numeric": "{{.Field}}は数値である必要があります",
+    "alpha": "{{.Field}}は文字のみを含む必要があります",
+    "alphanumeric": "{{.Field}}は文字と数字のみを含む必要があります",
+    "url": "{{.Field}}は有効なURLである必要があります",
+    "uuid": "{{.Field}}は有効なUUIDである必要があります",
+    "min": "{{.Field}}は{{.Min}}以上である必要があります",
+    "max": "{{.Field}}は{{.Max}}を超えてはいけません",
+    "between": "{{.Field}}は{{.Min}}から{{.Max}}の間である必要があります",
+    "in": "{{.Field}}は次のいずれかである必要があります: {{.Values}}",
+    "unique": "{{.Field}}は既に存在します",
+    "exists": "{{.Field}}は存在しません"
+  },
+  "auth": {
+    "login_success": "ログインに成功しました",
+    "logout_success": "ログアウトに成功しました",
+    "register_success": "登録に成功しました",
+    "invalid_credentials": "メールアドレスまたはパスワードが無効です",
+    "email_exists": "メールアドレスは既に存在します",
+    "token_expired": "トークンの有効期限が切れています",
+    "token_invalid": "トークンが無効です",
+    "password_reset_sent": "パスワードリセットメールを送信しました",
+    "password_reset_success": "パスワードのリセットに成功しました",
+    "password_changed": "パスワードの変更に成功しました",
+    "account_locked": "アカウントがロックされています",
+    "account_inactive": "アカウントが有効化されていません",
+    "email_not_verified": "メールアドレスが確認されていません"
+  },
+  "user": {
+    "profile_updated": "プロフィールの更新に成功しました",
+    "user_not_found": "ユーザーが見つかりません",
+    "user_created": "ユーザーの作成に成功しました",
+    "user_deleted": "ユーザーの削除に成功しました",
+    "avatar_updated": "アバターの更新に成功しました",
+    "invalid_password": "現在のパスワードが正しくありません"
+  },
+  "pagination": {
+    "invalid_page": "ページ番号が無効です",
+    "invalid_limit": "制限値が無効です",
+    "invalid_cursor": "カーソル値が無効です"
+  },
+  "file": {
+    "upload_success": "ファイルのアップロードに成功しました",
+    "upload_failed": "ファイルのアップロードに失敗しました",
+    "invalid_format": "ファイル形式が無効です",
+    "too_large": "ファイルサイズが上限の{{.MaxSize}}MBを超えています",
+    "not_found": "ファイルが見つかりません",
+    "delete_success": "ファイルの削除に成功しました"
+  },
+  "database": {
+    "connection_error": "データベース接続エラー",
+    "query_error": "データベースクエリエラー",
+    "transaction_error": "トランザクションエラー",
+    "constraint_violation": "データベース制約違反"
+  }
+}

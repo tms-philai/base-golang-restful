@@ -69,7 +69,7 @@ func (hc *HealthChecker) Check(ctx context.Context) HealthCheck {
 	components := make([]ComponentHealth, 0, len(checkers))
 	overallStatus := HealthStatusHealthy
 
-	for name, checker := range checkers {
+	for _, checker := range checkers {
 		component := checker(ctx)
 		components = append(components, component)
 

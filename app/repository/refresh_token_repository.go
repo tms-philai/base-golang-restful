@@ -4,14 +4,13 @@ import (
 	"context"
 	"time"
 
-	"base-golang-restful/app/models"
+	"base-golang-restful-app/models"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type RefreshTokenRepository interface {
-	BaseRepository[models.RefreshToken]
 	FindByToken(ctx context.Context, token string) (*models.RefreshToken, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID) ([]models.RefreshToken, error)
 	FindValidByToken(ctx context.Context, token string) (*models.RefreshToken, error)
@@ -22,12 +21,12 @@ type RefreshTokenRepository interface {
 }
 
 type refreshTokenRepository struct {
-	*GormRepository[models.RefreshToken]
+	db *gorm.DB
 }
 
 func NewRefreshTokenRepository(db *gorm.DB) RefreshTokenRepository {
 	return &refreshTokenRepository{
-		GormRepository: NewGormRepository[models.RefreshToken](db),
+		db: db,
 	}
 }
 

@@ -165,3 +165,12 @@ func FromContext(ctx context.Context) *Logger {
 
 	return &Logger{logger: logger}
 }
+
+func GetCorrelationID(c interface{ Get(any) (any, bool) }) string {
+	if val, exists := c.Get(string(CorrelationIDKey)); exists {
+		if id, ok := val.(string); ok {
+			return id
+		}
+	}
+	return ""
+}

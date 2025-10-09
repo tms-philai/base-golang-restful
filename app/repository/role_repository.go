@@ -3,14 +3,13 @@ package repository
 import (
 	"context"
 
-	"base-golang-restful/app/models"
+	"base-golang-restful-app/models"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type RoleRepository interface {
-	BaseRepository[models.Role]
 	FindByName(ctx context.Context, name string) (*models.Role, error)
 	FindByNameWithPermissions(ctx context.Context, name string) (*models.Role, error)
 	FindWithPermissions(ctx context.Context, id uuid.UUID) (*models.Role, error)
@@ -20,12 +19,12 @@ type RoleRepository interface {
 }
 
 type roleRepository struct {
-	*GormRepository[models.Role]
+	db *gorm.DB
 }
 
 func NewRoleRepository(db *gorm.DB) RoleRepository {
 	return &roleRepository{
-		GormRepository: NewGormRepository[models.Role](db),
+		db: db,
 	}
 }
 

@@ -40,7 +40,10 @@ import (
 
 func main() {
 	// Load configuration
-	cfg := config.Load()
+	cfg, err := config.Load(".env")
+	if err != nil {
+		log.Fatal("Failed to load configuration:", err)
+	}
 
 	// Initialize services
 	userService := services.NewUserService()

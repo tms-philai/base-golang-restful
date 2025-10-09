@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"base-golang-restful/app/auth"
-	"base-golang-restful/app/models"
+	"base-golang-restful-app/auth"
+	"base-golang-restful-app/models"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"base-golang-restful/app/auth"
-	appErrors "base-golang-restful/app/errors"
-	"base-golang-restful/app/models"
-	"base-golang-restful/app/repository"
+	"base-golang-restful-app/auth"
+	appErrors "base-golang-restful-app/errors"
+	"base-golang-restful-app/models"
+	"base-golang-restful-app/repository"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

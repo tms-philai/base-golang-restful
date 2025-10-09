@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"base-golang-restful/app/auth"
-	"base-golang-restful/app/i18n"
-	"base-golang-restful/app/logger"
+	"base-golang-restful-app/auth"
+	"base-golang-restful-app/i18n"
+	"base-golang-restful-app/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

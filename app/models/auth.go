@@ -21,6 +21,17 @@ type RegisterRequest struct {
 	LastName  string `json:"last_name" binding:"required" example:"Doe"`
 }
 
+// UserResponse represents a user in API responses
+type UserResponse struct {
+	ID        string    `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Email     string    `json:"email" example:"user@example.com"`
+	FirstName string    `json:"first_name" example:"John"`
+	LastName  string    `json:"last_name" example:"Doe"`
+	IsActive  bool      `json:"is_active" example:"true"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // AuthResponse represents the response payload for authentication operations
 type AuthResponse struct {
 	User         UserResponse `json:"user"`
@@ -60,17 +71,24 @@ type TokenPair struct {
 // NewJWTClaims creates new JWT claims for a user
 func NewJWTClaims(user *User, tokenType string, duration time.Duration) *JWTClaims {
 	now := time.Now()
+	userIDStr := user.ID.String()
+	
+	primaryRole := ""
+	if len(user.Roles) > 0 {
+		primaryRole = user.Roles[0].Name
+	}
+	
 	return &JWTClaims{
-		UserID:   user.ID,
-		Username: user.Username,
+		UserID:   userIDStr,
+		Username: user.Email,
 		Email:    user.Email,
-		Role:     user.Role,
+		Role:     primaryRole,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   user.ID,
+			Subject:   userIDStr,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(duration)),
 			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "base-golang-restful-app",
+			Issuer:    "base-golang-restful",
 			Audience:  []string{"api"},
 		},
 	}

@@ -3,10 +3,10 @@ package middleware
 import (
 	"net/http"
 
-	appErrors "base-golang-restful/app/errors"
-	"base-golang-restful/app/i18n"
-	"base-golang-restful/app/logger"
-	"base-golang-restful/app/models"
+	appErrors "base-golang-restful-app/errors"
+	"base-golang-restful-app/i18n"
+	"base-golang-restful-app/logger"
+	"base-golang-restful-app/models"
 
 	"github.com/gin-gonic/gin"
 )

@@ -88,8 +88,8 @@ func (r *userRepository) Create(ctx context.Context, entity interface{}) error {
 		return gorm.ErrInvalidData
 	}
 
-	if user.ID == "" {
-		user.ID = uuid.New().String()
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
 	}
 
 	return r.db.WithContext(ctx).Create(user).Error

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"base-golang-restful/app/i18n"
+	"base-golang-restful-app/i18n"
 
 	"github.com/stretchr/testify/assert"
 )
