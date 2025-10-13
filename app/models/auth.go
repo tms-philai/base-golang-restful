@@ -21,6 +21,25 @@ type RegisterRequest struct {
 	LastName  string `json:"last_name" binding:"required" example:"Doe"`
 }
 
+// UserCreateRequest represents the request for creating a user
+type UserCreateRequest struct {
+	Username  string `json:"username" binding:"required,min=3,max=50"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=6"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+}
+
+// UserUpdateRequest represents the request for updating a user
+type UserUpdateRequest struct {
+	Email     *string `json:"email,omitempty"`
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	IsActive  *bool   `json:"is_active,omitempty"`
+	Role      *string `json:"role,omitempty"`
+}
+
 // UserResponse represents a user in API responses
 type UserResponse struct {
 	ID        string    `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -72,12 +91,12 @@ type TokenPair struct {
 func NewJWTClaims(user *User, tokenType string, duration time.Duration) *JWTClaims {
 	now := time.Now()
 	userIDStr := user.ID.String()
-	
+
 	primaryRole := ""
 	if len(user.Roles) > 0 {
 		primaryRole = user.Roles[0].Name
 	}
-	
+
 	return &JWTClaims{
 		UserID:   userIDStr,
 		Username: user.Email,

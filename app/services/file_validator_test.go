@@ -1,10 +1,8 @@
 package services
 
 import (
-	"bytes"
 	"mime/multipart"
 	"net/textproto"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

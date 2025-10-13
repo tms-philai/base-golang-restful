@@ -3,7 +3,6 @@ package testing
 import (
 	"bytes"
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -26,7 +25,7 @@ func NewTestServer(t *testing.T, router *gin.Engine) *TestServer {
 
 func (ts *TestServer) GET(path string, headers map[string]string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest("GET", path, nil)
-	
+
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -43,7 +42,7 @@ func (ts *TestServer) POST(path string, body interface{}, headers map[string]str
 
 	req := httptest.NewRequest("POST", path, bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -60,7 +59,7 @@ func (ts *TestServer) PUT(path string, body interface{}, headers map[string]stri
 
 	req := httptest.NewRequest("PUT", path, bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -73,7 +72,7 @@ func (ts *TestServer) PUT(path string, body interface{}, headers map[string]stri
 
 func (ts *TestServer) DELETE(path string, headers map[string]string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest("DELETE", path, nil)
-	
+
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -92,14 +91,14 @@ func (ts *TestServer) AssertJSON(w *httptest.ResponseRecorder, expected interfac
 	var actual interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &actual)
 	assert.NoError(ts.t, err)
-	
+
 	expectedJSON, err := json.Marshal(expected)
 	assert.NoError(ts.t, err)
-	
+
 	var expectedMap interface{}
 	err = json.Unmarshal(expectedJSON, &expectedMap)
 	assert.NoError(ts.t, err)
-	
+
 	assert.Equal(ts.t, expectedMap, actual)
 }
 

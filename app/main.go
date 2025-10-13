@@ -63,12 +63,12 @@ func main() {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
-		
+
 		c.Next()
 	})
 
@@ -93,7 +93,7 @@ func main() {
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/refresh", authHandler.RefreshToken)
-			
+
 			// Protected auth routes
 			authProtected := auth.Group("")
 			authProtected.Use(middleware.AuthMiddleware(jwtService, userService))
@@ -108,7 +108,7 @@ func main() {
 		{
 			// Public user routes (with optional auth)
 			users.GET("/:id", middleware.OptionalAuthMiddleware(jwtService, userService), userHandler.GetUser)
-			
+
 			// Protected user routes
 			usersProtected := users.Group("")
 			usersProtected.Use(middleware.AuthMiddleware(jwtService, userService))
@@ -117,7 +117,7 @@ func main() {
 				usersProtected.GET("", middleware.RequireRole("admin"), userHandler.ListUsers)
 				usersProtected.POST("", middleware.RequireRole("admin"), userHandler.CreateUser)
 				usersProtected.DELETE("/:id", middleware.RequireRole("admin"), userHandler.DeleteUser)
-				
+
 				// User can update their own profile, admin can update any
 				usersProtected.PUT("/:id", userHandler.UpdateUser)
 			}
@@ -130,7 +130,7 @@ func main() {
 			products.GET("", productHandler.ListProducts)
 			products.GET("/categories", productHandler.GetCategories)
 			products.GET("/:id", productHandler.GetProduct)
-			
+
 			// Protected product routes
 			productsProtected := products.Group("")
 			productsProtected.Use(middleware.AuthMiddleware(jwtService, userService))
@@ -150,7 +150,7 @@ func main() {
 	log.Printf("Server starting on %s:%s", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Swagger documentation available at: http://localhost:%s/swagger/index.html", cfg.Server.Port)
 	log.Printf("API base URL: http://localhost:%s/api/v1", cfg.Server.Port)
-	
+
 	if err := r.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

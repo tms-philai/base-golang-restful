@@ -11,6 +11,7 @@ import (
 	"base-golang-restful-app/tests/testhelpers"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,14 +19,14 @@ import (
 // AuthMiddlewareTestSuite defines the test suite for AuthMiddleware
 type AuthMiddlewareTestSuite struct {
 	suite.Suite
-	helper         *testhelpers.TestHelper
-	mockUserSvc    *mocks.MockUserService
-	mockJWTSvc     *mocks.MockJWTService
-	router         *gin.Engine
-	testUser       *models.User
-	testAdmin      *models.User
-	validToken     string
-	invalidToken   string
+	helper       *testhelpers.TestHelper
+	mockUserSvc  *mocks.MockUserService
+	mockJWTSvc   *mocks.MockJWTService
+	router       *gin.Engine
+	testUser     *models.User
+	testAdmin    *models.User
+	validToken   string
+	invalidToken string
 }
 
 // SetupTest sets up the test environment before each test
@@ -36,24 +37,20 @@ func (suite *AuthMiddlewareTestSuite) SetupTest() {
 
 	// Create test users
 	suite.testUser = &models.User{
-		ID:        "user-123",
-		Username:  "testuser",
+		ID:        uuid.New(),
 		Email:     "test@example.com",
 		FirstName: "Test",
 		LastName:  "User",
-		Role:      "user",
 		IsActive:  true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
 	suite.testAdmin = &models.User{
-		ID:        "admin-123",
-		Username:  "admin",
+		ID:        uuid.New(),
 		Email:     "admin@example.com",
 		FirstName: "Admin",
 		LastName:  "User",
-		Role:      "admin",
 		IsActive:  true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -64,7 +61,7 @@ func (suite *AuthMiddlewareTestSuite) SetupTest() {
 
 	// Setup router with middleware
 	suite.router = gin.New()
-	
+
 	// Protected route
 	protected := suite.router.Group("/protected")
 	protected.Use(middleware.AuthMiddleware(suite.mockJWTSvc, suite.mockUserSvc))

@@ -11,6 +11,7 @@ import (
 )
 
 type RefreshTokenRepository interface {
+	Create(ctx context.Context, token *models.RefreshToken) error
 	FindByToken(ctx context.Context, token string) (*models.RefreshToken, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID) ([]models.RefreshToken, error)
 	FindValidByToken(ctx context.Context, token string) (*models.RefreshToken, error)
@@ -28,6 +29,10 @@ func NewRefreshTokenRepository(db *gorm.DB) RefreshTokenRepository {
 	return &refreshTokenRepository{
 		db: db,
 	}
+}
+
+func (r *refreshTokenRepository) Create(ctx context.Context, token *models.RefreshToken) error {
+	return r.db.WithContext(ctx).Create(token).Error
 }
 
 func (r *refreshTokenRepository) FindByToken(ctx context.Context, token string) (*models.RefreshToken, error) {

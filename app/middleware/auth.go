@@ -142,3 +142,13 @@ func GetTokenClaims(c *gin.Context) (*auth.JWTClaims, bool) {
 
 	return jwtClaims, true
 }
+
+func GetCurrentUserID(c *gin.Context) string {
+	userID, _ := GetUserID(c)
+	return userID
+}
+
+func GetCurrentUser(c *gin.Context) (interface{}, bool) {
+	user, exists := c.Get("user")
+	return user, exists
+}

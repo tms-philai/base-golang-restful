@@ -130,3 +130,15 @@ func (u *User) GetAllPermissions() []Permission {
 
 	return permissions
 }
+
+func (u *User) ToResponse() UserResponse {
+	return UserResponse{
+		ID:        u.ID.String(),
+		Email:     u.Email,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		IsActive:  u.IsActive,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
+	}
+}

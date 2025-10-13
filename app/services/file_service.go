@@ -22,15 +22,15 @@ import (
 
 type FileService struct {
 	*BaseService
-	fileRepo      repository.BaseRepository[models.File]
-	validator     *FileValidator
-	uploadDir     string
-	baseURL       string
+	fileRepo  repository.BaseRepository
+	validator *FileValidator
+	uploadDir string
+	baseURL   string
 }
 
 type FileServiceConfig struct {
 	DB        *gorm.DB
-	FileRepo  repository.BaseRepository[models.File]
+	FileRepo  repository.BaseRepository
 	Validator *FileValidator
 	UploadDir string
 	BaseURL   string
@@ -97,13 +97,13 @@ func (s *FileService) UploadFile(ctx context.Context, input UploadFileInput) (*U
 
 	subDir := s.getSubDirectory()
 	fullUploadDir := filepath.Join(s.uploadDir, subDir)
-	
+
 	if err := os.MkdirAll(fullUploadDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
 	filePath := filepath.Join(fullUploadDir, fileName)
-	
+
 	if err := s.saveFile(file, filePath); err != nil {
 		return nil, fmt.Errorf("failed to save file: %w", err)
 	}
@@ -139,31 +139,35 @@ func (s *FileService) UploadFile(ctx context.Context, input UploadFileInput) (*U
 
 func (s *FileService) UploadMultipleFiles(ctx context.Context, fileHeaders []*multipart.FileHeader, uploadedBy *uuid.UUID, isPublic bool) ([]*UploadFileResult, error) {
 	results := make([]*UploadFileResult, 0, len(fileHeaders))
-	
+
 	for _, fileHeader := range fileHeaders {
 		result, err := s.UploadFile(ctx, UploadFileInput{
 			FileHeader: fileHeader,
 			UploadedBy: uploadedBy,
 			IsPublic:   isPublic,
 		})
-		
+
 		if err != nil {
 			return results, err
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	return results, nil
 }
 
 func (s *FileService) GetFile(ctx context.Context, fileID uuid.UUID) (*models.File, error) {
-	return s.fileRepo.FindByID(ctx, fileID)
+	var file models.File
+	if err := s.fileRepo.FindByID(ctx, fileID, &file); err != nil {
+		return nil, err
+	}
+	return &file, nil
 }
 
 func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID) error {
-	file, err := s.fileRepo.FindByID(ctx, fileID)
-	if err != nil {
+	var file models.File
+	if err := s.fileRepo.FindByID(ctx, fileID, &file); err != nil {
 		return err
 	}
 
@@ -174,7 +178,7 @@ func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID) error {
 		}
 	}
 
-	if err := s.fileRepo.Delete(ctx, fileID); err != nil {
+	if err := s.fileRepo.Delete(ctx, fileID, &models.File{}); err != nil {
 		return fmt.Errorf("failed to delete file metadata: %w", err)
 	}
 
@@ -187,23 +191,23 @@ func (s *FileService) GetFilesByUser(ctx context.Context, userID uuid.UUID) ([]m
 		Where("uploaded_by = ?", userID).
 		Order("created_at DESC").
 		Find(&files).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return files, nil
 }
 
 func (s *FileService) generateUniqueFileName(originalName string) (string, error) {
 	ext := filepath.Ext(originalName)
 	nameWithoutExt := strings.TrimSuffix(originalName, ext)
-	
+
 	timestamp := time.Now().UnixNano()
 	hash := sha256.New()
 	hash.Write([]byte(fmt.Sprintf("%s-%d", nameWithoutExt, timestamp)))
 	hashStr := hex.EncodeToString(hash.Sum(nil))[:16]
-	
+
 	return fmt.Sprintf("%s-%s%s", nameWithoutExt, hashStr, ext), nil
 }
 
@@ -236,8 +240,8 @@ func (s *FileService) saveFile(src multipart.File, dst string) error {
 }
 
 func (s *FileService) GetFileContent(ctx context.Context, fileID uuid.UUID) ([]byte, error) {
-	file, err := s.fileRepo.FindByID(ctx, fileID)
-	if err != nil {
+	var file models.File
+	if err := s.fileRepo.FindByID(ctx, fileID, &file); err != nil {
 		return nil, err
 	}
 
@@ -255,8 +259,8 @@ func (s *FileService) GetFileContent(ctx context.Context, fileID uuid.UUID) ([]b
 }
 
 func (s *FileService) GetFilePath(ctx context.Context, fileID uuid.UUID) (string, error) {
-	file, err := s.fileRepo.FindByID(ctx, fileID)
-	if err != nil {
+	var file models.File
+	if err := s.fileRepo.FindByID(ctx, fileID, &file); err != nil {
 		return "", err
 	}
 

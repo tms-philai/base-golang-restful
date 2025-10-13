@@ -132,11 +132,20 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	}
 
 	// Get current user
-	currentUser, err := middleware.GetCurrentUser(c)
-	if err != nil {
+	currentUserInterface, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUserInterface == nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
+		})
+		return
+	}
+
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
 		})
 		return
 	}
@@ -213,11 +222,20 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	}
 
 	// Get current user
-	currentUser, err := middleware.GetCurrentUser(c)
-	if err != nil {
+	currentUserInterface, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUserInterface == nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
+		})
+		return
+	}
+
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
 		})
 		return
 	}
@@ -233,7 +251,7 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	}
 
 	// Allow admin to delete any product, or owner to delete their own product
-	if currentUser.Role != "admin" && currentUser.ID != product.CreatedBy {
+	if currentUser.Roles != "admin" && currentUser.ID != product.CreatedBy {
 		c.JSON(http.StatusForbidden, models.ErrorResponse{
 			Error:   "forbidden",
 			Message: "You can only delete your own products",
@@ -359,17 +377,39 @@ func (h *ProductHandler) UpdateStock(c *gin.Context) {
 	}
 
 	// Get current user
-	currentUser, err := middleware.GetCurrentUser(c)
-	if err != nil {
+	currentUserInterface, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUserInterface == nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
 		})
 		return
 	}
 
 	// Check if product exists and user has permission to update
 	product, err := h.productService.GetByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Error:   "product_not_found",
+			Message: err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Error:   "product_not_found",
+			Message: err.Error(),
+		})
+		return
+	}
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
+		})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusNotFound, models.ErrorResponse{
 			Error:   "product_not_found",

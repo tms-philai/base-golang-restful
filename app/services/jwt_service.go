@@ -46,7 +46,7 @@ func (s *JWTService) GenerateTokenPair(user *models.User) (*models.TokenPair, er
 // generateToken generates a JWT token for a user
 func (s *JWTService) generateToken(user *models.User, tokenType string, duration time.Duration) (string, error) {
 	claims := models.NewJWTClaims(user, tokenType, duration)
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.config.SecretKey))
 }
@@ -81,7 +81,7 @@ func (s *JWTService) RefreshToken(refreshTokenString string, user *models.User) 
 	}
 
 	// Verify token belongs to the user
-	if claims.UserID != user.ID {
+	if claims.UserID != user.ID.String() {
 		return nil, errors.New("token does not belong to user")
 	}
 

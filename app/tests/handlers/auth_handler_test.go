@@ -20,11 +20,11 @@ import (
 // AuthHandlerTestSuite defines the test suite for AuthHandler
 type AuthHandlerTestSuite struct {
 	suite.Suite
-	helper         *testhelpers.TestHelper
-	mockUserSvc    *mocks.MockUserService
-	mockJWTSvc     *mocks.MockJWTService
-	authHandler    *handlers.AuthHandler
-	router         *gin.Engine
+	helper      *testhelpers.TestHelper
+	mockUserSvc *mocks.MockUserService
+	mockJWTSvc  *mocks.MockJWTService
+	authHandler *handlers.AuthHandler
+	router      *gin.Engine
 }
 
 // SetupTest sets up the test environment before each test

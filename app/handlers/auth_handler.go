@@ -216,15 +216,23 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 // @Failure 401 {object} models.ErrorResponse
 // @Router /auth/profile [get]
 func (h *AuthHandler) GetProfile(c *gin.Context) {
-	user, err := middleware.GetCurrentUser(c)
-	if err != nil {
+	userInterface, exists := middleware.GetCurrentUser(c)
+	if !exists || userInterface == nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
 		})
 		return
 	}
 
+	user, ok := userInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
+		})
+		return
+	}
 	c.JSON(http.StatusOK, user.ToResponse())
 }
 
@@ -251,16 +259,16 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	userID, err := middleware.GetCurrentUserID(c)
-	if err != nil {
+	userID := middleware.GetCurrentUserID(c)
+	if userID == "" {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
 		})
 		return
 	}
 
-	err = h.userService.ChangePassword(userID, req.CurrentPassword, req.NewPassword)
+	err := h.userService.ChangePassword(userID, req.CurrentPassword, req.NewPassword)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{
 			Error:   "password_change_failed",
