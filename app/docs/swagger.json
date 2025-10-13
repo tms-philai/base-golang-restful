@@ -20,9 +20,61 @@
         "version": "2.0"
     },
     "host": "localhost:8080",
-    "basePath": "/api/v1",
+    "basePath": "/",
     "paths": {
-        "/auth/change-password": {
+        "/api/v1/api-version/v1-only": {
+            "get": {
+                "description": "Example endpoint that only works with API v1",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Versioning"
+                ],
+                "summary": "API V1 example endpoint",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/api-version/v2-only": {
+            "get": {
+                "description": "Example endpoint that only works with API v2",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Versioning"
+                ],
+                "summary": "API V2 example endpoint",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/change-password": {
             "post": {
                 "security": [
                     {
@@ -73,7 +125,7 @@
                 }
             }
         },
-        "/auth/login": {
+        "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user and return tokens",
                 "consumes": [
@@ -119,7 +171,7 @@
                 }
             }
         },
-        "/auth/profile": {
+        "/api/v1/auth/profile": {
             "get": {
                 "security": [
                     {
@@ -153,7 +205,7 @@
                 }
             }
         },
-        "/auth/refresh": {
+        "/api/v1/auth/refresh": {
             "post": {
                 "description": "Generate new access token using refresh token",
                 "consumes": [
@@ -199,7 +251,7 @@
                 }
             }
         },
-        "/auth/register": {
+        "/api/v1/auth/register": {
             "post": {
                 "description": "Register a new user account",
                 "consumes": [
@@ -245,7 +297,434 @@
                 }
             }
         },
-        "/products": {
+        "/api/v1/email/send": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send a simple text or HTML email to one or more recipients",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Email"
+                ],
+                "summary": "Send a simple email",
+                "parameters": [
+                    {
+                        "description": "Email details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SendEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/email/send-bulk": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send multiple emails in bulk (queued asynchronously)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Email"
+                ],
+                "summary": "Send multiple emails",
+                "parameters": [
+                    {
+                        "description": "Bulk email details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SendBulkEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/email/send-sync": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send an email synchronously and wait for confirmation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Email"
+                ],
+                "summary": "Send an email synchronously",
+                "parameters": [
+                    {
+                        "description": "Email details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SendEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/email/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the current status and queue size of the email service",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Email"
+                ],
+                "summary": "Get email service status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.EmailStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/email/test-connection": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Test the SMTP connection to ensure email service is working",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Email"
+                ],
+                "summary": "Test email service connection",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TestEmailConnectionResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/mark-read": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark a specific notification as read",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark notification as read",
+                "parameters": [
+                    {
+                        "description": "Notification ID",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.MarkAsReadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/send": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send a notification to a user via specified channel (email or in-app)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Send a notification",
+                "parameters": [
+                    {
+                        "description": "Notification details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SendNotificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.NotificationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/send-bulk": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send multiple notifications in bulk",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Send multiple notifications",
+                "parameters": [
+                    {
+                        "description": "Bulk notification details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SendBulkNotificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the current status of notification service and available channels",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get notification service status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.NotificationServiceStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/user/{user_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all notifications for a specific user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get user notifications",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ListNotificationsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products": {
             "get": {
                 "description": "Get a paginated list of products with filtering and searching",
                 "consumes": [
@@ -371,7 +850,7 @@
                 }
             }
         },
-        "/products/categories": {
+        "/api/v1/products/categories": {
             "get": {
                 "description": "Get all unique product categories",
                 "consumes": [
@@ -402,7 +881,7 @@
                 }
             }
         },
-        "/products/{id}": {
+        "/api/v1/products/{id}": {
             "get": {
                 "description": "Get a product by its ID",
                 "consumes": [
@@ -579,7 +1058,7 @@
                 }
             }
         },
-        "/products/{id}/stock": {
+        "/api/v1/products/{id}/stock": {
             "patch": {
                 "security": [
                     {
@@ -654,7 +1133,7 @@
                 }
             }
         },
-        "/users": {
+        "/api/v1/users": {
             "get": {
                 "security": [
                     {
@@ -788,7 +1267,7 @@
                 }
             }
         },
-        "/users/{id}": {
+        "/api/v1/users/{id}": {
             "get": {
                 "security": [
                     {
@@ -975,9 +1454,367 @@
                     }
                 }
             }
+        },
+        "/health": {
+            "get": {
+                "description": "Get detailed health status of all system components",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Monitoring"
+                ],
+                "summary": "Get comprehensive health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/health.HealthCheck"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/detailed": {
+            "get": {
+                "description": "Get detailed health information including system metrics and service status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Info"
+                ],
+                "summary": "Get detailed health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.HealthDetailedResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/info": {
+            "get": {
+                "description": "Get comprehensive API information including version, status, and capabilities",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Info"
+                ],
+                "summary": "Get API information",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIInfoResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics": {
+            "get": {
+                "description": "Get detailed metrics about API performance and usage",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Monitoring"
+                ],
+                "summary": "Get application metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/metrics.Metrics"
+                        }
+                    }
+                }
+            }
+        },
+        "/metrics/reset": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reset all collected metrics (admin only)",
+                "tags": [
+                    "Monitoring"
+                ],
+                "summary": "Reset metrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SuccessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/time": {
+            "get": {
+                "description": "Get current server time in various formats",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Info"
+                ],
+                "summary": "Get server time",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ServerTimeResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/version": {
+            "get": {
+                "description": "Get the current API version being used (from header, query, or path)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "API Info"
+                ],
+                "summary": "Get current API version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "API Version in header",
+                        "name": "API-Version",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Version in query",
+                        "name": "version",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.APIVersionResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "health.ComponentHealth": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/health.HealthStatus"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "health.HealthCheck": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/health.ComponentHealth"
+                    }
+                },
+                "status": {
+                    "$ref": "#/definitions/health.HealthStatus"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "health.HealthStatus": {
+            "type": "string",
+            "enum": [
+                "healthy",
+                "degraded",
+                "unhealthy"
+            ],
+            "x-enum-varnames": [
+                "HealthStatusHealthy",
+                "HealthStatusDegraded",
+                "HealthStatusUnhealthy"
+            ]
+        },
+        "metrics.EndpointMetric": {
+            "type": "object",
+            "properties": {
+                "avg_duration": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "max_duration": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "min_duration": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "total_duration": {
+                    "$ref": "#/definitions/time.Duration"
+                }
+            }
+        },
+        "metrics.Metrics": {
+            "type": "object",
+            "properties": {
+                "average_duration": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "endpoint_metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/metrics.EndpointMetric"
+                    }
+                },
+                "error_count": {
+                    "type": "integer"
+                },
+                "request_count": {
+                    "type": "integer"
+                },
+                "status_code_counts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "total_duration": {
+                    "$ref": "#/definitions/time.Duration"
+                }
+            }
+        },
+        "models.APIEndpoints": {
+            "type": "object",
+            "properties": {
+                "auth": {
+                    "type": "string",
+                    "example": "/api/v1/auth"
+                },
+                "documentation": {
+                    "type": "string",
+                    "example": "/swagger/index.html"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "/api/v1/email"
+                },
+                "notifications": {
+                    "type": "string",
+                    "example": "/api/v1/notifications"
+                },
+                "products": {
+                    "type": "string",
+                    "example": "/api/v1/products"
+                },
+                "users": {
+                    "type": "string",
+                    "example": "/api/v1/users"
+                }
+            }
+        },
+        "models.APIInfoResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "A comprehensive RESTful API"
+                },
+                "endpoints": {
+                    "$ref": "#/definitions/models.APIEndpoints"
+                },
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Base Golang RESTful API"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "operational"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "v1"
+                }
+            }
+        },
+        "models.APIVersionResponse": {
+            "type": "object",
+            "properties": {
+                "deprecated_versions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "extracted_from": {
+                    "type": "string",
+                    "example": "header"
+                },
+                "supported_versions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "version": {
+                    "type": "string",
+                    "example": "v1"
+                }
+            }
+        },
         "models.AuthResponse": {
             "type": "object",
             "properties": {
@@ -1020,6 +1857,40 @@
                 }
             }
         },
+        "models.EmailResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Email sent successfully"
+                },
+                "queue_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "models.EmailStatusResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Email service is running"
+                },
+                "queue_size": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "status": {
+                    "type": "string",
+                    "example": "operational"
+                }
+            }
+        },
         "models.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -1034,22 +1905,170 @@
                 }
             }
         },
+        "models.HealthDetailedResponse": {
+            "type": "object",
+            "properties": {
+                "services": {
+                    "$ref": "#/definitions/models.ServiceStatus"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "healthy"
+                },
+                "system": {
+                    "$ref": "#/definitions/models.SystemMetrics"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "2h30m15s"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "v1"
+                }
+            }
+        },
+        "models.ListNotificationsResponse": {
+            "type": "object",
+            "properties": {
+                "notifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.NotificationResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "unread": {
+                    "type": "integer",
+                    "example": 5
+                }
+            }
+        },
         "models.LoginRequest": {
             "type": "object",
             "required": [
-                "password",
-                "username"
+                "email",
+                "password"
             ],
             "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "admin@example.com"
+                },
                 "password": {
                     "type": "string",
                     "example": "password123"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "johndoe"
                 }
             }
+        },
+        "models.MarkAsReadRequest": {
+            "type": "object",
+            "required": [
+                "notification_id"
+            ],
+            "properties": {
+                "notification_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "models.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Thank you for joining us"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.NotificationStatus"
+                        }
+                    ],
+                    "example": "sent"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Welcome!"
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.NotificationType"
+                        }
+                    ],
+                    "example": "email"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "models.NotificationServiceStatusResponse": {
+            "type": "object",
+            "properties": {
+                "email_channel": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "in_app_channel": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Notification service is running"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "operational"
+                }
+            }
+        },
+        "models.NotificationStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "sent",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "NotificationStatusPending",
+                "NotificationStatusSent",
+                "NotificationStatusFailed"
+            ]
+        },
+        "models.NotificationType": {
+            "type": "string",
+            "enum": [
+                "email",
+                "in_app"
+            ],
+            "x-enum-varnames": [
+                "NotificationTypeEmail",
+                "NotificationTypeInApp"
+            ]
         },
         "models.PaginationMetadata": {
             "type": "object",
@@ -1276,6 +2295,150 @@
                 }
             }
         },
+        "models.SendBulkEmailRequest": {
+            "type": "object",
+            "required": [
+                "emails"
+            ],
+            "properties": {
+                "emails": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/models.SendEmailRequest"
+                    }
+                }
+            }
+        },
+        "models.SendBulkNotificationRequest": {
+            "type": "object",
+            "required": [
+                "notifications"
+            ],
+            "properties": {
+                "notifications": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/models.SendNotificationRequest"
+                    }
+                }
+            }
+        },
+        "models.SendEmailRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "subject",
+                "to"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "example": "Thank you for joining us!"
+                },
+                "is_html": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "Welcome to Our Platform"
+                },
+                "to": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "user@example.com"
+                    ]
+                }
+            }
+        },
+        "models.SendNotificationRequest": {
+            "type": "object",
+            "required": [
+                "message",
+                "title",
+                "type",
+                "user_id"
+            ],
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Thank you for joining us"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Welcome!"
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.NotificationType"
+                        }
+                    ],
+                    "example": "email"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "models.ServerTimeResponse": {
+            "type": "object",
+            "properties": {
+                "formatted": {
+                    "type": "string",
+                    "example": "2023-10-13T10:00:00Z"
+                },
+                "local": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string",
+                    "example": "UTC"
+                },
+                "unix": {
+                    "type": "integer",
+                    "example": 1697184000
+                },
+                "unix_milli": {
+                    "type": "integer",
+                    "example": 1697184000000
+                },
+                "utc": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ServiceStatus": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "email": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "notifications": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "redis": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "models.SuccessResponse": {
             "type": "object",
             "properties": {
@@ -1286,38 +2449,92 @@
                 }
             }
         },
+        "models.SystemMetrics": {
+            "type": "object",
+            "properties": {
+                "go_version": {
+                    "type": "string",
+                    "example": "go1.21.0"
+                },
+                "memory_alloc": {
+                    "type": "integer",
+                    "example": 5242880
+                },
+                "memory_sys": {
+                    "type": "integer",
+                    "example": 20971520
+                },
+                "memory_total": {
+                    "type": "integer",
+                    "example": 10485760
+                },
+                "num_cpu": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "num_gc": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "num_goroutine": {
+                    "type": "integer",
+                    "example": 25
+                }
+            }
+        },
+        "models.TestEmailConnectionResponse": {
+            "type": "object",
+            "properties": {
+                "connected": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Email connection successful"
+                },
+                "smtp_host": {
+                    "type": "string",
+                    "example": "smtp.gmail.com"
+                },
+                "smtp_port": {
+                    "type": "integer",
+                    "example": 587
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "models.UserCreateRequest": {
             "type": "object",
             "required": [
                 "email",
-                "first_name",
-                "last_name",
                 "password",
                 "username"
             ],
             "properties": {
                 "email": {
-                    "type": "string",
-                    "example": "john@example.com"
+                    "type": "string"
                 },
                 "first_name": {
-                    "type": "string",
-                    "example": "John"
+                    "type": "string"
                 },
                 "last_name": {
-                    "type": "string",
-                    "example": "Doe"
+                    "type": "string"
                 },
                 "password": {
                     "type": "string",
-                    "minLength": 6,
-                    "example": "password123"
+                    "minLength": 6
+                },
+                "role": {
+                    "type": "string"
                 },
                 "username": {
                     "type": "string",
                     "maxLength": 50,
-                    "minLength": 3,
-                    "example": "johndoe"
+                    "minLength": 3
                 }
             }
         },
@@ -1325,12 +2542,11 @@
             "type": "object",
             "properties": {
                 "created_at": {
-                    "type": "string",
-                    "example": "2023-01-01T00:00:00Z"
+                    "type": "string"
                 },
                 "email": {
                     "type": "string",
-                    "example": "john@example.com"
+                    "example": "user@example.com"
                 },
                 "first_name": {
                     "type": "string",
@@ -1348,17 +2564,8 @@
                     "type": "string",
                     "example": "Doe"
                 },
-                "role": {
-                    "type": "string",
-                    "example": "user"
-                },
                 "updated_at": {
-                    "type": "string",
-                    "example": "2023-01-01T00:00:00Z"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "johndoe"
+                    "type": "string"
                 }
             }
         },
@@ -1366,28 +2573,45 @@
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string",
-                    "example": "john@example.com"
+                    "type": "string"
                 },
                 "first_name": {
-                    "type": "string",
-                    "example": "John"
+                    "type": "string"
                 },
                 "is_active": {
-                    "type": "boolean",
-                    "example": true
+                    "type": "boolean"
                 },
                 "last_name": {
-                    "type": "string",
-                    "example": "Doe"
+                    "type": "string"
                 },
-                "username": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3,
-                    "example": "johndoe"
+                "role": {
+                    "type": "string"
                 }
             }
+        },
+        "time.Duration": {
+            "type": "integer",
+            "format": "int64",
+            "enum": [
+                -9223372036854775808,
+                9223372036854775807,
+                1,
+                1000,
+                1000000,
+                1000000000,
+                60000000000,
+                3600000000000
+            ],
+            "x-enum-varnames": [
+                "minDuration",
+                "maxDuration",
+                "Nanosecond",
+                "Microsecond",
+                "Millisecond",
+                "Second",
+                "Minute",
+                "Hour"
+            ]
         }
     },
     "securityDefinitions": {

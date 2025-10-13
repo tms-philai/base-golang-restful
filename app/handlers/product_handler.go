@@ -35,7 +35,7 @@ func NewProductHandler(productService *services.ProductService) *ProductHandler 
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 409 {object} models.ErrorResponse
-// @Router /products [post]
+// @Router /api/v1/products [post]
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	var req models.ProductCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,11 +47,11 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	userID, err := middleware.GetCurrentUserID(c)
-	if err != nil {
+	userID, exists := middleware.GetUserID(c)
+	if !exists || userID == "" {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
 		})
 		return
 	}
@@ -82,7 +82,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 // @Success 200 {object} models.Product
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
-// @Router /products/{id} [get]
+// @Router /api/v1/products/{id} [get]
 func (h *ProductHandler) GetProduct(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -120,7 +120,7 @@ func (h *ProductHandler) GetProduct(c *gin.Context) {
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 409 {object} models.ErrorResponse
-// @Router /products/{id} [put]
+// @Router /api/v1/products/{id} [put]
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -161,7 +161,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	}
 
 	// Allow admin to update any product, or owner to update their own product
-	if currentUser.Role != "admin" && currentUser.ID != product.CreatedBy {
+	if !currentUser.HasRole("admin") && currentUser.ID.String() != product.CreatedBy {
 		c.JSON(http.StatusForbidden, models.ErrorResponse{
 			Error:   "forbidden",
 			Message: "You can only update your own products",
@@ -210,7 +210,7 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
-// @Router /products/{id} [delete]
+// @Router /api/v1/products/{id} [delete]
 func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -251,7 +251,7 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 	}
 
 	// Allow admin to delete any product, or owner to delete their own product
-	if currentUser.Roles != "admin" && currentUser.ID != product.CreatedBy {
+	if !currentUser.HasRole("admin") && currentUser.ID.String() != product.CreatedBy {
 		c.JSON(http.StatusForbidden, models.ErrorResponse{
 			Error:   "forbidden",
 			Message: "You can only delete your own products",
@@ -287,7 +287,7 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 // @Param sort_dir query string false "Sort direction (asc/desc)" default(desc)
 // @Success 200 {object} models.ProductListResponse
 // @Failure 400 {object} models.ErrorResponse
-// @Router /products [get]
+// @Router /api/v1/products [get]
 func (h *ProductHandler) ListProducts(c *gin.Context) {
 	// Parse query parameters
 	query := models.ProductListQuery{
@@ -343,7 +343,7 @@ func (h *ProductHandler) ListProducts(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 200 {object} object{categories=[]string}
-// @Router /products/categories [get]
+// @Router /api/v1/products/categories [get]
 func (h *ProductHandler) GetCategories(c *gin.Context) {
 	categories := h.productService.GetCategories()
 	c.JSON(http.StatusOK, gin.H{
@@ -365,7 +365,7 @@ func (h *ProductHandler) GetCategories(c *gin.Context) {
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
-// @Router /products/{id}/stock [patch]
+// @Router /api/v1/products/{id}/stock [patch]
 func (h *ProductHandler) UpdateStock(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -386,6 +386,15 @@ func (h *ProductHandler) UpdateStock(c *gin.Context) {
 		return
 	}
 
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
+		})
+		return
+	}
+
 	// Check if product exists and user has permission to update
 	product, err := h.productService.GetByID(id)
 	if err != nil {
@@ -395,31 +404,9 @@ func (h *ProductHandler) UpdateStock(c *gin.Context) {
 		})
 		return
 	}
-	if err != nil {
-		c.JSON(http.StatusNotFound, models.ErrorResponse{
-			Error:   "product_not_found",
-			Message: err.Error(),
-		})
-		return
-	}
-	currentUser, ok := currentUserInterface.(*models.User)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Error:   "unauthorized",
-			Message: "User not authenticated",
-		})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusNotFound, models.ErrorResponse{
-			Error:   "product_not_found",
-			Message: err.Error(),
-		})
-		return
-	}
 
 	// Allow admin to update any product, or owner to update their own product
-	if currentUser.Role != "admin" && currentUser.ID != product.CreatedBy {
+	if !currentUser.HasRole("admin") && currentUser.ID.String() != product.CreatedBy {
 		c.JSON(http.StatusForbidden, models.ErrorResponse{
 			Error:   "forbidden",
 			Message: "You can only update your own products",

@@ -1,48 +1,53 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"base-golang-restful-app/models"
+	"base-golang-restful-app/repository"
 	"base-golang-restful-app/utils"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserService struct {
-	users map[string]*models.User
-	mutex sync.RWMutex
+	userRepo repository.UserRepository
 }
 
-func NewUserService() *UserService {
+func NewUserService(userRepo repository.UserRepository) *UserService {
 	return &UserService{
-		users: make(map[string]*models.User),
-		mutex: sync.RWMutex{},
+		userRepo: userRepo,
 	}
 }
 
 func (s *UserService) Create(req models.UserCreateRequest) (*models.User, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	ctx := context.Background()
 
-	if errors := utils.ValidatePasswordStrength(req.Password); len(errors) > 0 {
-		return nil, fmt.Errorf("password validation failed: %s", strings.Join(errors, ", "))
+	// Validate password strength
+	if errs := utils.ValidatePasswordStrength(req.Password); len(errs) > 0 {
+		return nil, fmt.Errorf("password validation failed: %s", strings.Join(errs, ", "))
 	}
 
-	for _, user := range s.users {
-		if user.Email == req.Email {
-			return nil, errors.New("email already exists")
-		}
+	// Check if email already exists
+	_, err := s.userRepo.FindByEmail(ctx, req.Email)
+	if err == nil {
+		return nil, errors.New("email already exists")
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to check email: %w", err)
 	}
 
+	// Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
+	// Create user
 	user := &models.User{
 		ID:        uuid.New(),
 		Email:     req.Email,
@@ -52,76 +57,96 @@ func (s *UserService) Create(req models.UserCreateRequest) (*models.User, error)
 		IsActive:  true,
 	}
 
-	s.users[user.ID.String()] = user
+	// Save to database
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
 	return user, nil
 }
 
 func (s *UserService) GetByID(id string) (*models.User, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	ctx := context.Background()
 
-	user, exists := s.users[id]
-	if !exists {
-		return nil, errors.New("user not found")
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, errors.New("invalid user ID")
+	}
+
+	var user models.User
+	if err := s.userRepo.FindByID(ctx, userID, &user); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (s *UserService) GetByEmail(email string) (*models.User, error) {
+	ctx := context.Background()
+
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	return user, nil
 }
 
-func (s *UserService) GetByEmail(email string) (*models.User, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+func (s *UserService) List(page, pageSize int) ([]*models.User, models.PaginationMetadata, error) {
+	ctx := context.Background()
 
-	for _, user := range s.users {
-		if user.Email == email {
-			return user, nil
-		}
+	users, total, err := s.userRepo.FindAllWithPagination(ctx, page, pageSize)
+	if err != nil {
+		return nil, models.PaginationMetadata{}, fmt.Errorf("failed to list users: %w", err)
 	}
 
-	return nil, errors.New("user not found")
-}
-
-func (s *UserService) List(page, pageSize int) ([]*models.User, int, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	users := make([]*models.User, 0, len(s.users))
-	for _, user := range s.users {
-		users = append(users, user)
+	// Convert []models.User to []*models.User
+	userPtrs := make([]*models.User, len(users))
+	for i := range users {
+		userPtrs[i] = &users[i]
 	}
 
-	total := len(users)
-	start := (page - 1) * pageSize
-	if start > total {
-		return []*models.User{}, total, nil
-	}
+	pagination := models.NewPaginationMetadata(page, pageSize, total)
 
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-
-	return users[start:end], total, nil
+	return userPtrs, pagination, nil
 }
 
 func (s *UserService) Update(id string, req models.UserUpdateRequest) (*models.User, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	ctx := context.Background()
 
-	user, exists := s.users[id]
-	if !exists {
-		return nil, errors.New("user not found")
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, errors.New("invalid user ID")
 	}
 
-	if req.Email != nil {
-		for _, existingUser := range s.users {
-			if existingUser.ID.String() != id && existingUser.Email == *req.Email {
-				return nil, errors.New("email already exists")
-			}
+	// Get existing user
+	var user models.User
+	if err := s.userRepo.FindByID(ctx, userID, &user); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check email uniqueness if email is being updated
+	if req.Email != nil && *req.Email != user.Email {
+		_, err := s.userRepo.FindByEmail(ctx, *req.Email)
+		if err == nil {
+			return nil, errors.New("email already exists")
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("failed to check email: %w", err)
 		}
 		user.Email = *req.Email
 	}
 
+	// Update fields
 	if req.FirstName != nil {
 		user.FirstName = *req.FirstName
 	}
@@ -134,18 +159,36 @@ func (s *UserService) Update(id string, req models.UserUpdateRequest) (*models.U
 		user.IsActive = *req.IsActive
 	}
 
-	return user, nil
+	// Save updates
+	if err := s.userRepo.Update(ctx, &user); err != nil {
+		return nil, fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return &user, nil
 }
 
 func (s *UserService) Delete(id string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	ctx := context.Background()
 
-	if _, exists := s.users[id]; !exists {
-		return errors.New("user not found")
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		return errors.New("invalid user ID")
 	}
 
-	delete(s.users, id)
+	// Check if user exists
+	var user models.User
+	if err := s.userRepo.FindByID(ctx, userID, &user); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("user not found")
+		}
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Delete user
+	if err := s.userRepo.Delete(ctx, userID, &user); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
 	return nil
 }
 
@@ -167,27 +210,43 @@ func (s *UserService) ValidateCredentials(email, password string) (*models.User,
 }
 
 func (s *UserService) ChangePassword(userID, oldPassword, newPassword string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	ctx := context.Background()
 
-	user, exists := s.users[userID]
-	if !exists {
-		return errors.New("user not found")
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return errors.New("invalid user ID")
 	}
 
+	// Get user
+	var user models.User
+	if err := s.userRepo.FindByID(ctx, uid, &user); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("user not found")
+		}
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Verify old password
 	if err := utils.CheckPassword(oldPassword, user.Password); err != nil {
 		return errors.New("invalid old password")
 	}
 
-	if errors := utils.ValidatePasswordStrength(newPassword); len(errors) > 0 {
-		return fmt.Errorf("password validation failed: %s", strings.Join(errors, ", "))
+	// Validate new password
+	if errs := utils.ValidatePasswordStrength(newPassword); len(errs) > 0 {
+		return fmt.Errorf("password validation failed: %s", strings.Join(errs, ", "))
 	}
 
+	// Hash new password
 	hashedPassword, err := utils.HashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
+	// Update password
 	user.Password = hashedPassword
+	if err := s.userRepo.Update(ctx, &user); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
 	return nil
 }

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # MailHog - SMTP testing tool
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - email-test
+
+  # Alternative: Mailpit (more modern)
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "1026:1025"  # SMTP server (different port to avoid conflict)
+      - "8026:8025"  # Web UI
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - email-test
+
+networks:
+  email-test:
+    driver: bridge
+

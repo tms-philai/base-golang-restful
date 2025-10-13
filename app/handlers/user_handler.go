@@ -36,7 +36,7 @@ func NewUserHandler(userService *services.UserService) *UserHandler {
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 409 {object} models.ErrorResponse
-// @Router /users [post]
+// @Router /api/v1/users [post]
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req models.UserCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,7 +76,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
-// @Router /users/{id} [get]
+// @Router /api/v1/users/{id} [get]
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -114,7 +114,7 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
 // @Failure 409 {object} models.ErrorResponse
-// @Router /users/{id} [put]
+// @Router /api/v1/users/{id} [put]
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -126,17 +126,26 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	// Check if user can update this profile
-	currentUser, err := middleware.GetCurrentUser(c)
-	if err != nil {
+	currentUserInterface, exists := middleware.GetCurrentUser(c)
+	if !exists || currentUserInterface == nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "unauthorized",
-			Message: err.Error(),
+			Message: "User not authenticated",
+		})
+		return
+	}
+
+	currentUser, ok := currentUserInterface.(*models.User)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
 		})
 		return
 	}
 
 	// Allow admin to update any user, or user to update their own profile
-	if currentUser.Role != "admin" && currentUser.ID != id {
+	if !currentUser.HasRole("admin") && currentUser.ID.String() != id {
 		c.JSON(http.StatusForbidden, models.ErrorResponse{
 			Error:   "forbidden",
 			Message: "You can only update your own profile",
@@ -155,7 +164,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	// Non-admin users cannot change IsActive status
-	if currentUser.Role != "admin" && req.IsActive != nil {
+	if !currentUser.HasRole("admin") && req.IsActive != nil {
 		c.JSON(http.StatusForbidden, models.ErrorResponse{
 			Error:   "forbidden",
 			Message: "You cannot change account status",
@@ -194,7 +203,7 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 403 {object} models.ErrorResponse
 // @Failure 404 {object} models.ErrorResponse
-// @Router /users/{id} [delete]
+// @Router /api/v1/users/{id} [delete]
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -236,7 +245,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
 // @Failure 403 {object} models.ErrorResponse
-// @Router /users [get]
+// @Router /api/v1/users [get]
 func (h *UserHandler) ListUsers(c *gin.Context) {
 	// Parse pagination parameters
 	page := 1

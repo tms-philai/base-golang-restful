@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type LocalStorage struct {
@@ -39,7 +38,7 @@ func NewLocalStorage(config LocalConfig) (*LocalStorage, error) {
 
 func (l *LocalStorage) Upload(ctx context.Context, input UploadInput) (*UploadResult, error) {
 	fullPath := filepath.Join(l.basePath, input.Key)
-	
+
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create directory: %w", err)
@@ -68,7 +67,7 @@ func (l *LocalStorage) Upload(ctx context.Context, input UploadInput) (*UploadRe
 
 func (l *LocalStorage) Download(ctx context.Context, key string) ([]byte, error) {
 	fullPath := filepath.Join(l.basePath, key)
-	
+
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -82,7 +81,7 @@ func (l *LocalStorage) Download(ctx context.Context, key string) ([]byte, error)
 
 func (l *LocalStorage) Delete(ctx context.Context, key string) error {
 	fullPath := filepath.Join(l.basePath, key)
-	
+
 	if err := os.Remove(fullPath); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -106,7 +105,7 @@ func (l *LocalStorage) GetSignedURL(ctx context.Context, key string, expiration 
 
 func (l *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 	fullPath := filepath.Join(l.basePath, key)
-	
+
 	_, err := os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -120,7 +119,7 @@ func (l *LocalStorage) Exists(ctx context.Context, key string) (bool, error) {
 
 func (l *LocalStorage) List(ctx context.Context, prefix string) ([]string, error) {
 	var keys []string
-	
+
 	searchPath := l.basePath
 	if prefix != "" {
 		searchPath = filepath.Join(l.basePath, prefix)
@@ -136,7 +135,7 @@ func (l *LocalStorage) List(ctx context.Context, prefix string) ([]string, error
 			if err != nil {
 				return err
 			}
-			
+
 			relPath = filepath.ToSlash(relPath)
 			keys = append(keys, relPath)
 		}
@@ -184,7 +183,7 @@ func (l *LocalStorage) CopyObject(ctx context.Context, sourceKey, destKey string
 
 func (l *LocalStorage) GetObjectMetadata(ctx context.Context, key string) (map[string]string, error) {
 	fullPath := filepath.Join(l.basePath, key)
-	
+
 	info, err := os.Stat(fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get file info: %w", err)
@@ -215,7 +214,7 @@ func (l *LocalStorage) cleanEmptyDirs(dir string) {
 	}
 
 	os.Remove(dir)
-	
+
 	parentDir := filepath.Dir(dir)
 	l.cleanEmptyDirs(parentDir)
 }

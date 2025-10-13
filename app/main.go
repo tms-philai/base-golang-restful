@@ -2,19 +2,22 @@ package main
 
 import (
 	"log"
-	"net/http"
+	"time"
 
+	"base-golang-restful-app/auth"
 	"base-golang-restful-app/config"
+	"base-golang-restful-app/database"
+	"base-golang-restful-app/email"
 	"base-golang-restful-app/handlers"
+	"base-golang-restful-app/health"
+	"base-golang-restful-app/i18n"
 	"base-golang-restful-app/middleware"
 	"base-golang-restful-app/models"
+	"base-golang-restful-app/repository"
+	"base-golang-restful-app/routes"
 	"base-golang-restful-app/services"
 
-	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-
-	_ "base-golang-restful-app/docs" // Import generated docs
+	_ "base-golang-restful-app/docs"
 )
 
 // @title Base Golang RESTful API with Authentication
@@ -30,7 +33,7 @@ import (
 // @license.url https://opensource.org/licenses/MIT
 
 // @host localhost:8080
-// @BasePath /api/v1
+// @BasePath /
 // @schemes http https
 
 // @securityDefinitions.apikey BearerAuth
@@ -45,103 +48,134 @@ func main() {
 		log.Fatal("Failed to load configuration:", err)
 	}
 
-	// Initialize services
-	userService := services.NewUserService()
-	productService := services.NewProductService()
-	jwtService := services.NewJWTService(&cfg.JWT)
+	// Initialize i18n
+	log.Println("Initializing i18n...")
+	if err := i18n.InitI18n(i18n.I18nConfig{
+		DefaultLanguage: "en",
+		LocalesPath:     "./locales",
+		SupportedLangs:  []string{"en", "vi", "ja"},
+	}); err != nil {
+		log.Fatal("Failed to initialize i18n:", err)
+	}
+
+	// Initialize database connection
+	log.Println("Connecting to database...")
+	dbConfig := database.Config{
+		Host:     cfg.Database.Host,
+		Port:     cfg.Database.Port,
+		User:     cfg.Database.User,
+		Password: cfg.Database.Password,
+		DBName:   cfg.Database.Name,
+		SSLMode:  cfg.Database.SSLMode,
+		TimeZone: cfg.Database.TimeZone,
+	}
+
+	if err := database.ConnectWithRetry(dbConfig, 5, 2*time.Second); err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer database.Close()
+
+	// Run database migrations (only if enabled)
+	if cfg.Database.AutoMigrate {
+		log.Println("Running database migrations...")
+		migrator := database.NewMigrator(database.GetDB())
+		if err := migrator.AutoMigrate(
+			&models.User{},
+			&models.Role{},
+			&models.Permission{},
+			&models.Product{},
+			&models.RefreshToken{},
+			&models.File{},
+		); err != nil {
+			log.Fatal("Failed to run migrations:", err)
+		}
+		log.Println("Database migrations completed successfully")
+	} else {
+		log.Println("Database auto-migration is disabled. Set DB_AUTO_MIGRATE=true to enable.")
+	}
+
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(database.GetDB())
+	productRepo := repository.NewProductRepository(database.GetDB())
+
+	// Initialize JWT manager
+	jwtManager := auth.NewJWTManager(auth.JWTConfig{
+		SecretKey:            cfg.JWT.SecretKey,
+		AccessTokenDuration:  cfg.JWT.AccessTokenDuration,
+		RefreshTokenDuration: cfg.JWT.RefreshTokenDuration,
+		Issuer:               "base-golang-restful",
+	})
+
+	// Initialize services with repositories
+	userService := services.NewUserService(userRepo)
+	productService := services.NewProductService(productRepo)
+
+	// Initialize email service
+	var emailService *email.EmailService
+	var notificationService *email.NotificationService
+	var emailHandler *handlers.EmailHandler
+	var notificationHandler *handlers.NotificationHandler
+	var inAppChannel *email.InAppNotificationChannel
+
+	if cfg.Email.Enabled {
+		log.Println("Initializing email service...")
+		emailClient := email.NewEmailClient(email.SMTPConfig{
+			Host:     cfg.Email.SMTPHost,
+			Port:     cfg.Email.SMTPPort,
+			Username: cfg.Email.SMTPUser,
+			Password: cfg.Email.SMTPPass,
+			From:     cfg.Email.From,
+			UseTLS:   true,
+		})
+
+		emailService = email.NewEmailService(email.EmailServiceConfig{
+			Client:    emailClient,
+			Workers:   5,
+			QueueSize: 100,
+		})
+
+		notificationService = email.NewNotificationService(emailService)
+
+		emailChannel := email.NewEmailNotificationChannel(emailService, cfg.Email.From)
+		notificationService.RegisterChannel(emailChannel)
+
+		inAppChannel = email.NewInAppNotificationChannel()
+		notificationService.RegisterChannel(inAppChannel)
+
+		emailHandler = handlers.NewEmailHandler(emailService)
+		notificationHandler = handlers.NewNotificationHandler(notificationService, inAppChannel)
+
+		log.Println("Email and Notification services initialized successfully")
+	} else {
+		log.Println("Email service is disabled. Set EMAIL_ENABLED=true to enable.")
+	}
+
+	// Initialize auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(jwtManager)
+
+	// Initialize health checker
+	healthChecker := health.NewHealthChecker(database.GetDB(), "2.0.0")
+	healthChecker.RegisterChecker("database", healthChecker.DatabaseChecker())
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userService, jwtService)
+	authHandler := handlers.NewAuthHandler(userService, jwtManager)
 	userHandler := handlers.NewUserHandler(userService)
 	productHandler := handlers.NewProductHandler(productService)
+	apiHandler := handlers.NewAPIHandler()
+	monitoringHandler := handlers.NewMonitoringHandler(healthChecker)
 
-	// Create Gin router with default middleware (logger and recovery)
-	r := gin.Default()
-
-	// Add CORS middleware
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
+	// Setup router with all routes
+	r := routes.SetupRouter(routes.RouterConfig{
+		AuthHandler:         authHandler,
+		UserHandler:         userHandler,
+		ProductHandler:      productHandler,
+		EmailHandler:        emailHandler,
+		NotificationHandler: notificationHandler,
+		APIHandler:          apiHandler,
+		MonitoringHandler:   monitoringHandler,
+		AuthMiddleware:      authMiddleware,
+		EmailEnabled:        cfg.Email.Enabled && emailHandler != nil,
 	})
-
-	// Health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "healthy",
-			"service": "base-golang-restful-app",
-			"version": "2.0.0",
-		})
-	})
-
-	// Swagger documentation
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	// API v1 routes
-	v1 := r.Group("/api/v1")
-	{
-		// Authentication routes (public)
-		auth := v1.Group("/auth")
-		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
-			auth.POST("/refresh", authHandler.RefreshToken)
-
-			// Protected auth routes
-			authProtected := auth.Group("")
-			authProtected.Use(middleware.AuthMiddleware(jwtService, userService))
-			{
-				authProtected.GET("/profile", authHandler.GetProfile)
-				authProtected.POST("/change-password", authHandler.ChangePassword)
-			}
-		}
-
-		// User routes
-		users := v1.Group("/users")
-		{
-			// Public user routes (with optional auth)
-			users.GET("/:id", middleware.OptionalAuthMiddleware(jwtService, userService), userHandler.GetUser)
-
-			// Protected user routes
-			usersProtected := users.Group("")
-			usersProtected.Use(middleware.AuthMiddleware(jwtService, userService))
-			{
-				// Admin only routes
-				usersProtected.GET("", middleware.RequireRole("admin"), userHandler.ListUsers)
-				usersProtected.POST("", middleware.RequireRole("admin"), userHandler.CreateUser)
-				usersProtected.DELETE("/:id", middleware.RequireRole("admin"), userHandler.DeleteUser)
-
-				// User can update their own profile, admin can update any
-				usersProtected.PUT("/:id", userHandler.UpdateUser)
-			}
-		}
-
-		// Product routes
-		products := v1.Group("/products")
-		{
-			// Public product routes
-			products.GET("", productHandler.ListProducts)
-			products.GET("/categories", productHandler.GetCategories)
-			products.GET("/:id", productHandler.GetProduct)
-
-			// Protected product routes
-			productsProtected := products.Group("")
-			productsProtected.Use(middleware.AuthMiddleware(jwtService, userService))
-			{
-				productsProtected.POST("", productHandler.CreateProduct)
-				productsProtected.PUT("/:id", productHandler.UpdateProduct)
-				productsProtected.DELETE("/:id", productHandler.DeleteProduct)
-				productsProtected.PATCH("/:id/stock", productHandler.UpdateStock)
-			}
-		}
-	}
 
 	// Create a default admin user if none exists
 	createDefaultAdmin(userService)
@@ -158,42 +192,31 @@ func main() {
 
 // createDefaultAdmin creates a default admin user for testing purposes
 func createDefaultAdmin(userService *services.UserService) {
-	// Check if any admin user exists
-	users, _, err := userService.List(1, 100)
-	if err != nil {
-		log.Println("Warning: Could not check for existing admin users")
+	// Check if admin user already exists
+	_, err := userService.GetByEmail("admin@example.com")
+	if err == nil {
+		// Admin already exists
+		log.Println("Default admin user already exists")
 		return
 	}
 
-	hasAdmin := false
-	for _, user := range users {
-		if user.Role == "admin" {
-			hasAdmin = true
-			break
-		}
+	// Create admin user
+	adminReq := models.UserCreateRequest{
+		Email:     "admin@example.com",
+		Password:  "admin123",
+		FirstName: "System",
+		LastName:  "Administrator",
 	}
 
-	if !hasAdmin {
-		adminReq := models.UserCreateRequest{
-			Username:  "admin",
-			Email:     "admin@example.com",
-			Password:  "admin123",
-			FirstName: "System",
-			LastName:  "Administrator",
-		}
-
-		admin, err := userService.Create(adminReq)
-		if err != nil {
-			log.Printf("Warning: Could not create default admin user: %v", err)
-			return
-		}
-
-		// Set admin role
-		admin.Role = "admin"
-		log.Println("Default admin user created:")
-		log.Println("  Username: admin")
-		log.Println("  Password: admin123")
-		log.Println("  Email: admin@example.com")
-		log.Println("Please change the default password after first login!")
+	admin, err := userService.Create(adminReq)
+	if err != nil {
+		log.Printf("Warning: Could not create default admin user: %v", err)
+		return
 	}
+
+	log.Println("Default admin user created successfully!")
+	log.Println("   Email: admin@example.com")
+	log.Println("   Password: admin123")
+	log.Printf("   User ID: %s", admin.ID)
+	log.Println("IMPORTANT: Please change the default password after first login!")
 }

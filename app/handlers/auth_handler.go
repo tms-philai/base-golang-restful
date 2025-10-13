@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"base-golang-restful-app/auth"
 	"base-golang-restful-app/middleware"
 	"base-golang-restful-app/models"
 	"base-golang-restful-app/services"
@@ -13,14 +14,14 @@ import (
 // AuthHandler handles authentication-related requests
 type AuthHandler struct {
 	userService *services.UserService
-	jwtService  *services.JWTService
+	jwtManager  *auth.JWTManager
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userService *services.UserService, jwtService *services.JWTService) *AuthHandler {
+func NewAuthHandler(userService *services.UserService, jwtManager *auth.JWTManager) *AuthHandler {
 	return &AuthHandler{
 		userService: userService,
-		jwtService:  jwtService,
+		jwtManager:  jwtManager,
 	}
 }
 
@@ -34,7 +35,7 @@ func NewAuthHandler(userService *services.UserService, jwtService *services.JWTS
 // @Success 201 {object} models.AuthResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 409 {object} models.ErrorResponse
-// @Router /auth/register [post]
+// @Router /api/v1/auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -69,7 +70,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Generate tokens
-	tokenPair, err := h.jwtService.GenerateTokenPair(user)
+	accessToken, err := h.jwtManager.GenerateAccessToken(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error:   "token_generation_failed",
+			Message: "Failed to generate authentication tokens",
+		})
+		return
+	}
+
+	refreshToken, err := h.jwtManager.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error:   "token_generation_failed",
@@ -80,10 +90,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	response := models.AuthResponse{
 		User:         user.ToResponse(),
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    tokenPair.ExpiresIn,
+		ExpiresIn:    int64(h.jwtManager.GetTokenDuration(auth.AccessToken).Seconds()),
 	}
 
 	c.JSON(http.StatusCreated, response)
@@ -99,7 +109,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 // @Success 200 {object} models.AuthResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
-// @Router /auth/login [post]
+// @Router /api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -112,7 +122,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Validate credentials
-	user, err := h.userService.ValidateCredentials(req.Username, req.Password)
+	user, err := h.userService.ValidateCredentials(req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "authentication_failed",
@@ -122,7 +132,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Generate tokens
-	tokenPair, err := h.jwtService.GenerateTokenPair(user)
+	accessToken, err := h.jwtManager.GenerateAccessToken(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error:   "token_generation_failed",
+			Message: "Failed to generate authentication tokens",
+		})
+		return
+	}
+
+	refreshToken, err := h.jwtManager.GenerateRefreshToken(user.ID, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error:   "token_generation_failed",
@@ -133,10 +152,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	response := models.AuthResponse{
 		User:         user.ToResponse(),
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    tokenPair.ExpiresIn,
+		ExpiresIn:    int64(h.jwtManager.GetTokenDuration(auth.AccessToken).Seconds()),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -152,7 +171,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Success 200 {object} models.AuthResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
-// @Router /auth/refresh [post]
+// @Router /api/v1/auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req models.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -165,7 +184,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Validate refresh token and get claims
-	claims, err := h.jwtService.ValidateToken(req.RefreshToken)
+	claims, err := h.jwtManager.ValidateToken(req.RefreshToken, auth.RefreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "invalid_token",
@@ -175,7 +194,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Get user
-	user, err := h.userService.GetByID(claims.UserID)
+	user, err := h.userService.GetByID(claims.UserID.String())
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Error:   "user_not_found",
@@ -185,21 +204,30 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Generate new token pair
-	tokenPair, err := h.jwtService.RefreshToken(req.RefreshToken, user)
+	accessToken, err := h.jwtManager.GenerateAccessToken(user.ID, user.Email)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
-			Error:   "token_refresh_failed",
-			Message: err.Error(),
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error:   "token_generation_failed",
+			Message: "Failed to generate access token",
+		})
+		return
+	}
+
+	refreshToken, err := h.jwtManager.GenerateRefreshToken(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Error:   "token_generation_failed",
+			Message: "Failed to generate refresh token",
 		})
 		return
 	}
 
 	response := models.AuthResponse{
 		User:         user.ToResponse(),
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    tokenPair.ExpiresIn,
+		ExpiresIn:    int64(h.jwtManager.GetTokenDuration(auth.AccessToken).Seconds()),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -214,7 +242,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 // @Security BearerAuth
 // @Success 200 {object} models.UserResponse
 // @Failure 401 {object} models.ErrorResponse
-// @Router /auth/profile [get]
+// @Router /api/v1/auth/profile [get]
 func (h *AuthHandler) GetProfile(c *gin.Context) {
 	userInterface, exists := middleware.GetCurrentUser(c)
 	if !exists || userInterface == nil {
@@ -247,7 +275,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 // @Success 200 {object} models.SuccessResponse
 // @Failure 400 {object} models.ErrorResponse
 // @Failure 401 {object} models.ErrorResponse
-// @Router /auth/change-password [post]
+// @Router /api/v1/auth/change-password [post]
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	var req models.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

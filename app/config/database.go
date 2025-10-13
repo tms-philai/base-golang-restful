@@ -31,4 +31,3 @@ func loadDatabaseConfig() DatabaseConfig {
 		LogQueries:      getEnvBool("DB_LOG_QUERIES", false),
 	}
 }
-

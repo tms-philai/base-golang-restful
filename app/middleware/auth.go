@@ -35,6 +35,9 @@ func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 			lang := i18n.GetLanguage(c)
 			var localizedErr *appErrors.AppError
 
+			// Log error for debugging
+			c.Error(err)
+
 			switch err {
 			case auth.ErrExpiredToken:
 				localizedErr = appErrors.LocalizedUnauthorized("auth.token_expired", nil).Localize(lang)
@@ -49,7 +52,7 @@ func (m *AuthMiddleware) Authenticate() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", claims.UserID)
+		c.Set("user_id", claims.UserID.String())
 		c.Set("user_email", claims.Email)
 		c.Set("token_claims", claims)
 
@@ -71,7 +74,7 @@ func (m *AuthMiddleware) OptionalAuthenticate() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", claims.UserID)
+		c.Set("user_id", claims.UserID.String())
 		c.Set("user_email", claims.Email)
 		c.Set("token_claims", claims)
 
