@@ -82,6 +82,13 @@ func GetLocalizer(lang string) *i18n.Localizer {
 	}
 
 	localizersMu.RLock()
+	if localizers == nil {
+		localizersMu.RUnlock()
+		if bundle != nil {
+			return i18n.NewLocalizer(bundle, lang)
+		}
+		return nil
+	}
 	localizer, exists := localizers[lang]
 	localizersMu.RUnlock()
 
@@ -92,6 +99,10 @@ func GetLocalizer(lang string) *i18n.Localizer {
 	localizersMu.Lock()
 	defer localizersMu.Unlock()
 
+	if bundle == nil {
+		return nil
+	}
+
 	localizer = i18n.NewLocalizer(bundle, lang)
 	localizers[lang] = localizer
 
@@ -100,6 +111,9 @@ func GetLocalizer(lang string) *i18n.Localizer {
 
 func Translate(lang, messageID string, templateData map[string]interface{}) string {
 	localizer := GetLocalizer(lang)
+	if localizer == nil {
+		return messageID
+	}
 
 	msg, err := localizer.Localize(&i18n.LocalizeConfig{
 		MessageID:    messageID,
@@ -115,6 +129,9 @@ func Translate(lang, messageID string, templateData map[string]interface{}) stri
 
 func TranslateWithDefault(lang, messageID, defaultMsg string, templateData map[string]interface{}) string {
 	localizer := GetLocalizer(lang)
+	if localizer == nil {
+		return defaultMsg
+	}
 
 	msg, err := localizer.Localize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
@@ -133,6 +150,9 @@ func TranslateWithDefault(lang, messageID, defaultMsg string, templateData map[s
 
 func MustTranslate(lang, messageID string, templateData map[string]interface{}) (string, error) {
 	localizer := GetLocalizer(lang)
+	if localizer == nil {
+		return "", fmt.Errorf("i18n not initialized")
+	}
 
 	msg, err := localizer.Localize(&i18n.LocalizeConfig{
 		MessageID:    messageID,

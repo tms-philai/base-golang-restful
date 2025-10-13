@@ -8,13 +8,13 @@ import (
 )
 
 type Metrics struct {
-	RequestCount      int64                  `json:"request_count"`
-	ErrorCount        int64                  `json:"error_count"`
-	TotalDuration     time.Duration          `json:"total_duration"`
-	AverageDuration   time.Duration          `json:"average_duration"`
-	EndpointMetrics   map[string]*EndpointMetric `json:"endpoint_metrics"`
-	StatusCodeCounts  map[int]int64          `json:"status_code_counts"`
-	mu                sync.RWMutex
+	RequestCount     int64                      `json:"request_count"`
+	ErrorCount       int64                      `json:"error_count"`
+	TotalDuration    time.Duration              `json:"total_duration"`
+	AverageDuration  time.Duration              `json:"average_duration"`
+	EndpointMetrics  map[string]*EndpointMetric `json:"endpoint_metrics"`
+	StatusCodeCounts map[int]int64              `json:"status_code_counts"`
+	mu               sync.RWMutex
 }
 
 type EndpointMetric struct {
@@ -57,7 +57,7 @@ func MetricsMiddleware() gin.HandlerFunc {
 
 		endpointKey := c.Request.Method + ":" + c.FullPath()
 		metric, exists := globalMetrics.EndpointMetrics[endpointKey]
-		
+
 		if !exists {
 			metric = &EndpointMetric{
 				Path:        c.FullPath(),

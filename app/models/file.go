@@ -8,7 +8,7 @@ import (
 )
 
 type File struct {
-	ID           uuid.UUID      `gorm:"type:uuid;primary_key;default:uuid_generate_v4()" json:"id"`
+	ID           uuid.UUID      `gorm:"type:uuid;primary_key" json:"id"`
 	OriginalName string         `gorm:"type:varchar(255);not null" json:"original_name"`
 	FileName     string         `gorm:"type:varchar(255);not null;uniqueIndex" json:"file_name"`
 	FilePath     string         `gorm:"type:varchar(500);not null" json:"file_path"`
@@ -70,12 +70,12 @@ func (f *File) IsVideo() bool {
 
 func (f *File) IsDocument() bool {
 	docTypes := map[string]bool{
-		"application/pdf":                                                      true,
-		"application/msword":                                                   true,
+		"application/pdf":    true,
+		"application/msword": true,
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
-		"application/vnd.ms-excel":                                             true,
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":    true,
-		"application/vnd.ms-powerpoint":                                        true,
+		"application/vnd.ms-excel": true,
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         true,
+		"application/vnd.ms-powerpoint":                                             true,
 		"application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
 		"text/plain": true,
 	}

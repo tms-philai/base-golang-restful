@@ -11,17 +11,17 @@ import (
 )
 
 type GCSStorage struct {
-	client     *storage.Client
-	bucket     string
-	projectID  string
-	baseURL    string
+	client    *storage.Client
+	bucket    string
+	projectID string
+	baseURL   string
 }
 
 type GCSConfig struct {
-	ProjectID           string
-	Bucket              string
-	CredentialsFile     string
-	CredentialsJSON     []byte
+	ProjectID       string
+	Bucket          string
+	CredentialsFile string
+	CredentialsJSON []byte
 }
 
 func NewGCSStorage(ctx context.Context, config GCSConfig) (*GCSStorage, error) {
@@ -55,7 +55,7 @@ func (g *GCSStorage) Upload(ctx context.Context, input UploadInput) (*UploadResu
 	writer := obj.NewWriter(ctx)
 
 	writer.ContentType = input.ContentType
-	
+
 	if len(input.Metadata) > 0 {
 		writer.Metadata = input.Metadata
 	}
@@ -109,7 +109,7 @@ func (g *GCSStorage) Download(ctx context.Context, key string) ([]byte, error) {
 
 func (g *GCSStorage) Delete(ctx context.Context, key string) error {
 	obj := g.client.Bucket(g.bucket).Object(key)
-	
+
 	if err := obj.Delete(ctx); err != nil {
 		return fmt.Errorf("failed to delete from GCS: %w", err)
 	}
@@ -122,14 +122,13 @@ func (g *GCSStorage) GetURL(ctx context.Context, key string) (string, error) {
 }
 
 func (g *GCSStorage) GetSignedURL(ctx context.Context, key string, expiration int64) (string, error) {
-	obj := g.client.Bucket(g.bucket).Object(key)
-
 	opts := &storage.SignedURLOptions{
+		Scheme:  storage.SigningSchemeV4,
 		Method:  "GET",
 		Expires: time.Now().Add(time.Duration(expiration) * time.Second),
 	}
 
-	url, err := obj.SignedURL(opts)
+	url, err := storage.SignedURL(g.bucket, key, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %w", err)
 	}
@@ -139,7 +138,7 @@ func (g *GCSStorage) GetSignedURL(ctx context.Context, key string, expiration in
 
 func (g *GCSStorage) Exists(ctx context.Context, key string) (bool, error) {
 	obj := g.client.Bucket(g.bucket).Object(key)
-	
+
 	_, err := obj.Attrs(ctx)
 	if err == storage.ErrObjectNotExist {
 		return false, nil

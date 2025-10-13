@@ -1,5 +1,143 @@
-basePath: /api/v1
+basePath: /
 definitions:
+  health.ComponentHealth:
+    properties:
+      duration:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/health.HealthStatus'
+      timestamp:
+        type: string
+    type: object
+  health.HealthCheck:
+    properties:
+      components:
+        items:
+          $ref: '#/definitions/health.ComponentHealth'
+        type: array
+      status:
+        $ref: '#/definitions/health.HealthStatus'
+      timestamp:
+        type: string
+      uptime:
+        type: string
+      version:
+        type: string
+    type: object
+  health.HealthStatus:
+    enum:
+    - healthy
+    - degraded
+    - unhealthy
+    type: string
+    x-enum-varnames:
+    - HealthStatusHealthy
+    - HealthStatusDegraded
+    - HealthStatusUnhealthy
+  metrics.EndpointMetric:
+    properties:
+      avg_duration:
+        $ref: '#/definitions/time.Duration'
+      count:
+        type: integer
+      error_count:
+        type: integer
+      max_duration:
+        $ref: '#/definitions/time.Duration'
+      method:
+        type: string
+      min_duration:
+        $ref: '#/definitions/time.Duration'
+      path:
+        type: string
+      total_duration:
+        $ref: '#/definitions/time.Duration'
+    type: object
+  metrics.Metrics:
+    properties:
+      average_duration:
+        $ref: '#/definitions/time.Duration'
+      endpoint_metrics:
+        additionalProperties:
+          $ref: '#/definitions/metrics.EndpointMetric'
+        type: object
+      error_count:
+        type: integer
+      request_count:
+        type: integer
+      status_code_counts:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      total_duration:
+        $ref: '#/definitions/time.Duration'
+    type: object
+  models.APIEndpoints:
+    properties:
+      auth:
+        example: /api/v1/auth
+        type: string
+      documentation:
+        example: /swagger/index.html
+        type: string
+      email:
+        example: /api/v1/email
+        type: string
+      notifications:
+        example: /api/v1/notifications
+        type: string
+      products:
+        example: /api/v1/products
+        type: string
+      users:
+        example: /api/v1/users
+        type: string
+    type: object
+  models.APIInfoResponse:
+    properties:
+      description:
+        example: A comprehensive RESTful API
+        type: string
+      endpoints:
+        $ref: '#/definitions/models.APIEndpoints'
+      features:
+        items:
+          type: string
+        type: array
+      name:
+        example: Base Golang RESTful API
+        type: string
+      status:
+        example: operational
+        type: string
+      timestamp:
+        type: string
+      version:
+        example: v1
+        type: string
+    type: object
+  models.APIVersionResponse:
+    properties:
+      deprecated_versions:
+        items:
+          type: string
+        type: array
+      extracted_from:
+        example: header
+        type: string
+      supported_versions:
+        items:
+          type: string
+        type: array
+      version:
+        example: v1
+        type: string
+    type: object
   models.AuthResponse:
     properties:
       access_token:
@@ -30,6 +168,30 @@ definitions:
     - current_password
     - new_password
     type: object
+  models.EmailResponse:
+    properties:
+      message:
+        example: Email sent successfully
+        type: string
+      queue_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  models.EmailStatusResponse:
+    properties:
+      message:
+        example: Email service is running
+        type: string
+      queue_size:
+        example: 5
+        type: integer
+      status:
+        example: operational
+        type: string
+    type: object
   models.ErrorResponse:
     properties:
       details: {}
@@ -40,18 +202,119 @@ definitions:
         example: Validation failed
         type: string
     type: object
+  models.HealthDetailedResponse:
+    properties:
+      services:
+        $ref: '#/definitions/models.ServiceStatus'
+      status:
+        example: healthy
+        type: string
+      system:
+        $ref: '#/definitions/models.SystemMetrics'
+      timestamp:
+        type: string
+      uptime:
+        example: 2h30m15s
+        type: string
+      version:
+        example: v1
+        type: string
+    type: object
+  models.ListNotificationsResponse:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/models.NotificationResponse'
+        type: array
+      total:
+        example: 10
+        type: integer
+      unread:
+        example: 5
+        type: integer
+    type: object
   models.LoginRequest:
     properties:
+      email:
+        example: admin@example.com
+        type: string
       password:
         example: password123
         type: string
-      username:
-        example: johndoe
+    required:
+    - email
+    - password
+    type: object
+  models.MarkAsReadRequest:
+    properties:
+      notification_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     required:
-    - password
-    - username
+    - notification_id
     type: object
+  models.NotificationResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      message:
+        example: Thank you for joining us
+        type: string
+      read_at:
+        type: string
+      sent_at:
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.NotificationStatus'
+        example: sent
+      title:
+        example: Welcome!
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/models.NotificationType'
+        example: email
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  models.NotificationServiceStatusResponse:
+    properties:
+      email_channel:
+        example: true
+        type: boolean
+      in_app_channel:
+        example: true
+        type: boolean
+      message:
+        example: Notification service is running
+        type: string
+      status:
+        example: operational
+        type: string
+    type: object
+  models.NotificationStatus:
+    enum:
+    - pending
+    - sent
+    - failed
+    type: string
+    x-enum-varnames:
+    - NotificationStatusPending
+    - NotificationStatusSent
+    - NotificationStatusFailed
+  models.NotificationType:
+    enum:
+    - email
+    - in_app
+    type: string
+    x-enum-varnames:
+    - NotificationTypeEmail
+    - NotificationTypeInApp
   models.PaginationMetadata:
     properties:
       has_next:
@@ -220,6 +483,106 @@ definitions:
     - password
     - username
     type: object
+  models.SendBulkEmailRequest:
+    properties:
+      emails:
+        items:
+          $ref: '#/definitions/models.SendEmailRequest'
+        minItems: 1
+        type: array
+    required:
+    - emails
+    type: object
+  models.SendBulkNotificationRequest:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/models.SendNotificationRequest'
+        minItems: 1
+        type: array
+    required:
+    - notifications
+    type: object
+  models.SendEmailRequest:
+    properties:
+      body:
+        example: Thank you for joining us!
+        type: string
+      is_html:
+        example: false
+        type: boolean
+      subject:
+        example: Welcome to Our Platform
+        type: string
+      to:
+        example:
+        - user@example.com
+        items:
+          type: string
+        type: array
+    required:
+    - body
+    - subject
+    - to
+    type: object
+  models.SendNotificationRequest:
+    properties:
+      data:
+        additionalProperties: true
+        type: object
+      message:
+        example: Thank you for joining us
+        type: string
+      title:
+        example: Welcome!
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/models.NotificationType'
+        example: email
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - message
+    - title
+    - type
+    - user_id
+    type: object
+  models.ServerTimeResponse:
+    properties:
+      formatted:
+        example: "2023-10-13T10:00:00Z"
+        type: string
+      local:
+        type: string
+      timezone:
+        example: UTC
+        type: string
+      unix:
+        example: 1697184000
+        type: integer
+      unix_milli:
+        example: 1697184000000
+        type: integer
+      utc:
+        type: string
+    type: object
+  models.ServiceStatus:
+    properties:
+      database:
+        example: true
+        type: boolean
+      email:
+        example: true
+        type: boolean
+      notifications:
+        example: true
+        type: boolean
+      redis:
+        example: true
+        type: boolean
+    type: object
   models.SuccessResponse:
     properties:
       data: {}
@@ -227,40 +590,76 @@ definitions:
         example: Operation completed successfully
         type: string
     type: object
+  models.SystemMetrics:
+    properties:
+      go_version:
+        example: go1.21.0
+        type: string
+      memory_alloc:
+        example: 5242880
+        type: integer
+      memory_sys:
+        example: 20971520
+        type: integer
+      memory_total:
+        example: 10485760
+        type: integer
+      num_cpu:
+        example: 8
+        type: integer
+      num_gc:
+        example: 10
+        type: integer
+      num_goroutine:
+        example: 25
+        type: integer
+    type: object
+  models.TestEmailConnectionResponse:
+    properties:
+      connected:
+        example: true
+        type: boolean
+      message:
+        example: Email connection successful
+        type: string
+      smtp_host:
+        example: smtp.gmail.com
+        type: string
+      smtp_port:
+        example: 587
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
   models.UserCreateRequest:
     properties:
       email:
-        example: john@example.com
         type: string
       first_name:
-        example: John
         type: string
       last_name:
-        example: Doe
         type: string
       password:
-        example: password123
         minLength: 6
         type: string
+      role:
+        type: string
       username:
-        example: johndoe
         maxLength: 50
         minLength: 3
         type: string
     required:
     - email
-    - first_name
-    - last_name
     - password
     - username
     type: object
   models.UserResponse:
     properties:
       created_at:
-        example: "2023-01-01T00:00:00Z"
         type: string
       email:
-        example: john@example.com
+        example: user@example.com
         type: string
       first_name:
         example: John
@@ -274,36 +673,43 @@ definitions:
       last_name:
         example: Doe
         type: string
-      role:
-        example: user
-        type: string
       updated_at:
-        example: "2023-01-01T00:00:00Z"
-        type: string
-      username:
-        example: johndoe
         type: string
     type: object
   models.UserUpdateRequest:
     properties:
       email:
-        example: john@example.com
         type: string
       first_name:
-        example: John
         type: string
       is_active:
-        example: true
         type: boolean
       last_name:
-        example: Doe
         type: string
-      username:
-        example: johndoe
-        maxLength: 50
-        minLength: 3
+      role:
         type: string
     type: object
+  time.Duration:
+    enum:
+    - -9223372036854775808
+    - 9223372036854775807
+    - 1
+    - 1000
+    - 1000000
+    - 1000000000
+    - 60000000000
+    - 3600000000000
+    format: int64
+    type: integer
+    x-enum-varnames:
+    - minDuration
+    - maxDuration
+    - Nanosecond
+    - Microsecond
+    - Millisecond
+    - Second
+    - Minute
+    - Hour
 host: localhost:8080
 info:
   contact:
@@ -319,7 +725,41 @@ info:
   title: Base Golang RESTful API with Authentication
   version: "2.0"
 paths:
-  /auth/change-password:
+  /api/v1/api-version/v1-only:
+    get:
+      description: Example endpoint that only works with API v1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: API V1 example endpoint
+      tags:
+      - API Versioning
+  /api/v1/api-version/v2-only:
+    get:
+      description: Example endpoint that only works with API v2
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: API V2 example endpoint
+      tags:
+      - API Versioning
+  /api/v1/auth/change-password:
     post:
       consumes:
       - application/json
@@ -351,7 +791,7 @@ paths:
       summary: Change user password
       tags:
       - authentication
-  /auth/login:
+  /api/v1/auth/login:
     post:
       consumes:
       - application/json
@@ -381,7 +821,7 @@ paths:
       summary: Login user
       tags:
       - authentication
-  /auth/profile:
+  /api/v1/auth/profile:
     get:
       consumes:
       - application/json
@@ -402,7 +842,7 @@ paths:
       summary: Get current user profile
       tags:
       - authentication
-  /auth/refresh:
+  /api/v1/auth/refresh:
     post:
       consumes:
       - application/json
@@ -432,7 +872,7 @@ paths:
       summary: Refresh access token
       tags:
       - authentication
-  /auth/register:
+  /api/v1/auth/register:
     post:
       consumes:
       - application/json
@@ -462,7 +902,273 @@ paths:
       summary: Register a new user
       tags:
       - authentication
-  /products:
+  /api/v1/email/send:
+    post:
+      consumes:
+      - application/json
+      description: Send a simple text or HTML email to one or more recipients
+      parameters:
+      - description: Email details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EmailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Send a simple email
+      tags:
+      - Email
+  /api/v1/email/send-bulk:
+    post:
+      consumes:
+      - application/json
+      description: Send multiple emails in bulk (queued asynchronously)
+      parameters:
+      - description: Bulk email details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendBulkEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EmailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Send multiple emails
+      tags:
+      - Email
+  /api/v1/email/send-sync:
+    post:
+      consumes:
+      - application/json
+      description: Send an email synchronously and wait for confirmation
+      parameters:
+      - description: Email details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EmailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Send an email synchronously
+      tags:
+      - Email
+  /api/v1/email/status:
+    get:
+      description: Get the current status and queue size of the email service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.EmailStatusResponse'
+      security:
+      - BearerAuth: []
+      summary: Get email service status
+      tags:
+      - Email
+  /api/v1/email/test-connection:
+    get:
+      description: Test the SMTP connection to ensure email service is working
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TestEmailConnectionResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Test email service connection
+      tags:
+      - Email
+  /api/v1/notifications/mark-read:
+    post:
+      consumes:
+      - application/json
+      description: Mark a specific notification as read
+      parameters:
+      - description: Notification ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MarkAsReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - Notifications
+  /api/v1/notifications/send:
+    post:
+      consumes:
+      - application/json
+      description: Send a notification to a user via specified channel (email or in-app)
+      parameters:
+      - description: Notification details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.NotificationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Send a notification
+      tags:
+      - Notifications
+  /api/v1/notifications/send-bulk:
+    post:
+      consumes:
+      - application/json
+      description: Send multiple notifications in bulk
+      parameters:
+      - description: Bulk notification details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendBulkNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Send multiple notifications
+      tags:
+      - Notifications
+  /api/v1/notifications/status:
+    get:
+      description: Get the current status of notification service and available channels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.NotificationServiceStatusResponse'
+      security:
+      - BearerAuth: []
+      summary: Get notification service status
+      tags:
+      - Notifications
+  /api/v1/notifications/user/{user_id}:
+    get:
+      description: Get all notifications for a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ListNotificationsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user notifications
+      tags:
+      - Notifications
+  /api/v1/products:
     get:
       consumes:
       - application/json
@@ -545,7 +1251,7 @@ paths:
       summary: Create a new product
       tags:
       - products
-  /products/{id}:
+  /api/v1/products/{id}:
     delete:
       consumes:
       - application/json
@@ -660,7 +1366,7 @@ paths:
       summary: Update product
       tags:
       - products
-  /products/{id}/stock:
+  /api/v1/products/{id}/stock:
     patch:
       consumes:
       - application/json
@@ -708,7 +1414,7 @@ paths:
       summary: Update product stock
       tags:
       - products
-  /products/categories:
+  /api/v1/products/categories:
     get:
       consumes:
       - application/json
@@ -728,7 +1434,7 @@ paths:
       summary: Get product categories
       tags:
       - products
-  /users:
+  /api/v1/users:
     get:
       consumes:
       - application/json
@@ -814,7 +1520,7 @@ paths:
       summary: Create a new user
       tags:
       - users
-  /users/{id}:
+  /api/v1/users/{id}:
     delete:
       consumes:
       - application/json
@@ -935,6 +1641,109 @@ paths:
       summary: Update user
       tags:
       - users
+  /health:
+    get:
+      description: Get detailed health status of all system components
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/health.HealthCheck'
+      summary: Get comprehensive health check
+      tags:
+      - Monitoring
+  /health/detailed:
+    get:
+      description: Get detailed health information including system metrics and service
+        status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.HealthDetailedResponse'
+      summary: Get detailed health check
+      tags:
+      - API Info
+  /info:
+    get:
+      description: Get comprehensive API information including version, status, and
+        capabilities
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIInfoResponse'
+      summary: Get API information
+      tags:
+      - API Info
+  /metrics:
+    get:
+      description: Get detailed metrics about API performance and usage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/metrics.Metrics'
+      summary: Get application metrics
+      tags:
+      - Monitoring
+  /metrics/reset:
+    post:
+      description: Reset all collected metrics (admin only)
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SuccessResponse'
+      security:
+      - BearerAuth: []
+      summary: Reset metrics
+      tags:
+      - Monitoring
+  /time:
+    get:
+      description: Get current server time in various formats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ServerTimeResponse'
+      summary: Get server time
+      tags:
+      - API Info
+  /version:
+    get:
+      description: Get the current API version being used (from header, query, or
+        path)
+      parameters:
+      - description: API Version in header
+        in: header
+        name: API-Version
+        type: string
+      - description: API Version in query
+        in: query
+        name: version
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.APIVersionResponse'
+      summary: Get current API version
+      tags:
+      - API Info
 schemes:
 - http
 - https

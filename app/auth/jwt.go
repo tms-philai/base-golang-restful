@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -102,7 +103,8 @@ func (m *JWTManager) ValidateToken(tokenString string, expectedType TokenType) (
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredToken
 		}
-		return nil, ErrInvalidToken
+		// Log the actual error for debugging
+		return nil, fmt.Errorf("token parse error: %w", err)
 	}
 
 	claims, ok := token.Claims.(*JWTClaims)
@@ -111,7 +113,7 @@ func (m *JWTManager) ValidateToken(tokenString string, expectedType TokenType) (
 	}
 
 	if claims.TokenType != expectedType {
-		return nil, ErrInvalidToken
+		return nil, fmt.Errorf("invalid token type: expected %s, got %s", expectedType, claims.TokenType)
 	}
 
 	if claims.UserID == uuid.Nil || claims.Email == "" {

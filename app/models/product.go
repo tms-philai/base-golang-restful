@@ -8,17 +8,21 @@ import (
 
 // Product represents a product in the system
 type Product struct {
-	ID          string    `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name        string    `json:"name" binding:"required,min=1,max=200" example:"iPhone 15 Pro"`
-	Description string    `json:"description" example:"Latest iPhone with advanced features"`
-	Price       float64   `json:"price" binding:"required,min=0" example:"999.99"`
-	Category    string    `json:"category" binding:"required" example:"Electronics"`
-	SKU         string    `json:"sku" binding:"required" example:"IP15P-128-BLK"`
-	Stock       int       `json:"stock" binding:"min=0" example:"100"`
-	IsActive    bool      `json:"is_active" example:"true"`
-	CreatedBy   string    `json:"created_by" example:"550e8400-e29b-41d4-a716-446655440000"`
-	CreatedAt   time.Time `json:"created_at" example:"2023-01-01T00:00:00Z"`
-	UpdatedAt   time.Time `json:"updated_at" example:"2023-01-01T00:00:00Z"`
+	ID          string    `gorm:"type:varchar(36);primary_key" json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name        string    `gorm:"type:varchar(200);not null" json:"name" binding:"required,min=1,max=200" example:"iPhone 15 Pro"`
+	Description string    `gorm:"type:text" json:"description" example:"Latest iPhone with advanced features"`
+	Price       float64   `gorm:"type:decimal(10,2);not null" json:"price" binding:"required,min=0" example:"999.99"`
+	Category    string    `gorm:"type:varchar(100);not null;index" json:"category" binding:"required" example:"Electronics"`
+	SKU         string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"sku" binding:"required" example:"IP15P-128-BLK"`
+	Stock       int       `gorm:"type:int;not null;default:0" json:"stock" binding:"min=0" example:"100"`
+	IsActive    bool      `gorm:"type:boolean;not null;default:true" json:"is_active" example:"true"`
+	CreatedBy   string    `gorm:"type:varchar(36);index" json:"created_by" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CreatedAt   time.Time `gorm:"autoCreateTime" json:"created_at" example:"2023-01-01T00:00:00Z"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at" example:"2023-01-01T00:00:00Z"`
+}
+
+func (Product) TableName() string {
+	return "products"
 }
 
 // ProductCreateRequest represents the request payload for creating a product

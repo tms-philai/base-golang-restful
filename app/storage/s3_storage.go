@@ -1,10 +1,8 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -49,7 +47,7 @@ func NewS3Storage(config S3Config) (*S3Storage, error) {
 	}
 
 	client := s3.New(sess)
-	
+
 	baseURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com", config.Bucket, config.Region)
 	if config.Endpoint != "" {
 		baseURL = config.Endpoint
