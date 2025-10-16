@@ -39,6 +39,19 @@ run:
 	$(GOBUILD) -o $(BINARY_NAME) -v $(MAIN_PATH)
 	./$(BINARY_NAME)
 
+# Run with Air (hot reload for development)
+dev:
+	air
+
+# Generate Swagger documentation
+docs:
+	swag init -g $(MAIN_PATH)/main.go --parseDependency --parseInternal
+
+# Generate Swagger docs and run with Air
+dev-docs:
+	swag init -g $(MAIN_PATH)/main.go --parseDependency --parseInternal
+	air
+
 # Run tests
 test:
 	$(GOTEST) -v ./...
@@ -200,6 +213,9 @@ help:
 	@echo "  build-linux        - Build for Linux"
 	@echo "  clean              - Clean build artifacts"
 	@echo "  run                - Run the application"
+	@echo "  dev                - Run with Air (hot reload)"
+	@echo "  docs               - Generate Swagger documentation"
+	@echo "  dev-docs           - Generate docs and run with Air"
 	@echo "  test               - Run all tests"
 	@echo "  test-unit          - Run unit tests only"
 	@echo "  test-integration   - Run integration tests only"

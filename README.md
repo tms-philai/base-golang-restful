@@ -300,6 +300,8 @@ sequenceDiagram
 - **Go**: 1.24.0 hoặc cao hơn
 - **PostgreSQL**: 12.0 hoặc cao hơn
 - **Git**: Để clone repository
+- **Air**: Hot reload tool cho Go development
+- **Swag**: Swagger documentation generator
 
 ### 🛠️ Cài đặt Go:
 
@@ -316,6 +318,78 @@ sudo apt install golang-go
 
 #### **Windows:**
 Tải từ [golang.org](https://golang.org/dl/) và cài đặt
+
+### 🔥 Cài đặt Air (Hot Reload):
+
+#### **macOS (Homebrew):**
+```bash
+brew install air
+```
+
+#### **Linux/Windows:**
+```bash
+go install github.com/cosmtrek/air@latest
+```
+
+#### **Hoặc sử dụng Go:**
+```bash
+go install github.com/cosmtrek/air@latest
+```
+
+### 📚 Cài đặt Swag (Swagger Generator):
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+```
+
+### 🛠️ Cài đặt các tools khác (tùy chọn):
+
+#### **GolangCI-Lint (Code Quality):**
+```bash
+# macOS
+brew install golangci-lint
+
+# Linux/Windows
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+```
+
+#### **Mockgen (Mock Generation):**
+```bash
+go install github.com/golang/mock/mockgen@latest
+```
+
+#### **Gosec (Security Scanner):**
+```bash
+go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+```
+
+### 🔧 Giải thích về các tools:
+
+#### **🔥 Air - Hot Reload Tool:**
+- **Mục đích**: Tự động restart server khi có thay đổi code
+- **Lợi ích**: Tiết kiệm thời gian development, không cần restart thủ công
+- **Cấu hình**: File `.air.toml` đã được cấu hình sẵn
+- **Sử dụng**: Chỉ cần chạy `air` hoặc `make dev`
+
+#### **📚 Swag - Swagger Generator:**
+- **Mục đích**: Tự động generate Swagger documentation từ code comments
+- **Lợi ích**: API documentation luôn được cập nhật
+- **Sử dụng**: Chạy `swag init` trước khi start server
+
+#### **🛠️ GolangCI-Lint:**
+- **Mục đích**: Code quality và style checking
+- **Lợi ích**: Đảm bảo code quality, phát hiện lỗi sớm
+- **Sử dụng**: `golangci-lint run`
+
+#### **🎭 Mockgen:**
+- **Mục đích**: Generate mock objects cho testing
+- **Lợi ích**: Dễ dàng tạo unit tests với mock dependencies
+- **Sử dụng**: `mockgen -source=interface.go -destination=mock.go`
+
+#### **🔒 Gosec:**
+- **Mục đích**: Security vulnerability scanning
+- **Lợi ích**: Phát hiện các lỗ hổng bảo mật trong code
+- **Sử dụng**: `gosec ./...`
 
 ### 🗄️ Cài đặt PostgreSQL:
 
@@ -389,6 +463,20 @@ EOF
 ```
 
 #### **4. Chạy dự án:**
+
+##### **🔥 Development với Air (Khuyến nghị):**
+```bash
+# Cách 1: Sử dụng Air trực tiếp
+air
+
+# Cách 2: Sử dụng Makefile
+make dev
+
+# Cách 3: Chạy với custom config
+air -c .air.toml
+```
+
+##### **🚀 Production:**
 ```bash
 # Cách 1: Sử dụng Makefile
 make run
@@ -400,6 +488,54 @@ go run cmd/server/main.go
 make build
 ./base-gin
 ```
+
+##### **📚 Generate Swagger Documentation:**
+```bash
+# Generate docs trước khi chạy
+swag init -g cmd/server/main.go --parseDependency --parseInternal
+
+# Hoặc sử dụng Makefile
+make docs
+```
+
+### 🔄 Development Workflow với Air:
+
+#### **Workflow khuyến nghị:**
+1. **Setup lần đầu:**
+   ```bash
+   # Cài đặt dependencies
+   go mod download
+   
+   # Generate Swagger docs
+   make docs
+   
+   # Chạy với Air
+   make dev
+   ```
+
+2. **Development hàng ngày:**
+   ```bash
+   # Chỉ cần chạy Air
+   air
+   
+   # Hoặc với Makefile
+   make dev
+   ```
+
+3. **Khi thay đổi API:**
+   ```bash
+   # Generate lại Swagger docs
+   make docs
+   
+   # Air sẽ tự động restart
+   ```
+
+#### **Tính năng của Air:**
+- ✅ **Auto-reload**: Tự động restart khi file `.go` thay đổi
+- ✅ **Fast build**: Chỉ build lại khi cần thiết
+- ✅ **Error handling**: Hiển thị lỗi compile rõ ràng
+- ✅ **Custom config**: Cấu hình linh hoạt qua `.air.toml`
+- ✅ **Exclude directories**: Bỏ qua thư mục không cần thiết
 
 #### **5. Kiểm tra API:**
 ```bash
@@ -435,6 +571,56 @@ make docker-build
 # Chạy container
 make docker-run
 ```
+
+### 🔧 Troubleshooting Air:
+
+#### **Lỗi thường gặp:**
+
+1. **Air không tìm thấy:**
+   ```bash
+   # Kiểm tra PATH
+   echo $PATH
+   
+   # Cài đặt lại Air
+   go install github.com/cosmtrek/air@latest
+   
+   # Thêm vào PATH nếu cần
+   export PATH=$PATH:$(go env GOPATH)/bin
+   ```
+
+2. **Air không restart:**
+   ```bash
+   # Kiểm tra file .air.toml
+   cat .air.toml
+   
+   # Chạy với verbose mode
+   air -v
+   
+   # Force restart
+   air -s
+   ```
+
+3. **Build errors:**
+   ```bash
+   # Kiểm tra Go version
+   go version
+   
+   # Clean và rebuild
+   make clean
+   go mod tidy
+   air
+   ```
+
+4. **Port đã được sử dụng:**
+   ```bash
+   # Kiểm tra port
+   lsof -i :8001
+   
+   # Kill process
+   kill -9 <PID>
+   
+   # Hoặc thay đổi port trong config
+   ```
 
 ---
 
