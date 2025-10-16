@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: base-gin-dev
+    ports:
+      - "8001:8001"
+    environment:
+      # Server Configuration
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8001
+      - SERVER_READ_TIMEOUT=30
+      - SERVER_WRITE_TIMEOUT=30
+      
+      # Database Configuration
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=base_gin_dev
+      - DB_SSLMODE=disable
+      - DB_TIMEZONE=UTC
+      
+      # JWT Configuration
+      - JWT_SECRET_KEY=dev-jwt-secret-key-not-for-production
+      - JWT_ACCESS_TOKEN_DURATION=1h
+      - JWT_REFRESH_TOKEN_DURATION=24h
+      
+      # Email Configuration (using MailHog for development)
+      - EMAIL_HOST=mailhog
+      - EMAIL_PORT=1025
+      - EMAIL_USERNAME=
+      - EMAIL_PASSWORD=
+      - EMAIL_FROM=dev@base-gin.local
+      
+      # Environment
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    volumes:
+      - ../:/app
+      - /app/vendor
+      - app-uploads:/app/uploads
+      - app-logs:/app/logs
+      - app-tmp:/app/tmp
+    networks:
+      - dev-network
+    restart: unless-stopped
+    command: ["go", "run", "cmd/server/main.go"]
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: base-gin-postgres-dev
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=base_gin_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d base_gin_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # MailHog for email testing in development
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: base-gin-mailhog-dev
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - dev-network
+    restart: unless-stopped
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: base-gin-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-dev-data:/data
+    networks:
+      - dev-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres-dev-data:
+    driver: local
+  redis-dev-data:
+    driver: local
+  app-uploads:
+    driver: local
+  app-logs:
+    driver: local
+  app-tmp:
+    driver: local
+
+networks:
+  dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
