@@ -1,220 +1,232 @@
-# Phase 4: Testing Strategy (Unit + Integration)
+# Phase 4: Email & Notification APIs
 
 ## 📋 Mục lục
 
 1. [Tổng quan](#1-tổng-quan)
-2. [Cấu trúc thư mục test](#2-cấu-trúc-thư-mục-test)
-3. [Chuẩn bị môi trường test](#3-chuẩn-bị-môi-trường-test)
-4. [Chạy test](#4-chạy-test)
-5. [Unit Test Guidelines](#5-unit-test-guidelines)
-6. [Integration Test Guidelines](#6-integration-test-guidelines)
-7. [Helpers & Utilities](#7-helpers--utilities)
-8. [Coverage & Báo cáo](#8-coverage--báo-cáo)
-9. [CI/CD tích hợp test](#9-cicd-tích-hợp-test)
-10. [Troubleshooting](#10-troubleshooting)
-11. [Gợi ý mở rộng](#11-gợi-ý-mở-rộng)
+2. [Email API](#2-email-api)
+3. [Notification API](#3-notification-api)
+4. [Observer Pattern: Khái niệm & Ứng dụng](#4-observer-pattern-khái-niệm--ứng-dụng)
+5. [Khởi tạo & Wiring trong dự án](#5-khởi-tạo--wiring-trong-dự-án)
+6. [Xử lý lỗi & bảo mật](#6-xử-lý-lỗi--bảo-mật)
+7. [Ví dụ gọi API](#7-ví-dụ-gọi-api)
+8. [Kiểm thử liên quan](#8-kiểm-thử-liên-quan)
+9. [Gợi ý mở rộng](#9-gợi-ý-mở-rộng)
 
 ---
 
 ## 1. Tổng quan
 
-Phase này chuẩn hoá cách viết và chạy test cho dự án, bám sát cấu trúc thực tế trong `test/`. Bao gồm unit test cho handlers và integration test kiểm tra end-to-end với DB thật.
+Phase này tập trung vào hai nhóm API chính: Email và Notification. Email API phục vụ gửi email đơn, đồng bộ/bất đồng bộ, và theo lô. Notification API cung cấp thông báo theo nhiều kênh (email, in-app) dựa trên Observer Pattern để dễ mở rộng và tách rời kênh gửi.
 
-Mục tiêu:
-- Cấu trúc, quy ước và công cụ test nhất quán
-- Hướng dẫn setup DB test, sinh `.env.test` tự động
-- Mẫu chạy test bằng Makefile và lệnh Go
-- Mục tiêu coverage, cách tạo báo cáo
-
----
-
-## 2. Cấu trúc thư mục test
-
-Nguồn thực tế: `test/README.md`
-
-```
-test/
-  unit/                    # Unit tests for individual components
-    auth_handler_test.go
-    user_handler_test.go
-    product_handler_test.go
-    email_handler_test.go
-    file_handler_test.go
-    monitoring_handler_test.go
-  integration/             # Integration tests for API endpoints
-    auth_integration_test.go
-    user_integration_test.go
-    product_integration_test.go
-  helpers/                 # Test helper functions and utilities
-    test_helpers.go
-  config/                  # Test configuration
-    test_config.go
-  setup/                   # Test setup and teardown
-    database_setup.go
-  dependencies.go          # Ensure test deps
-  README.md
-```
+Mã nguồn chính:
+- Email handler: `internal/app/handlers/email_handler.go`
+- Notification handler: `internal/app/handlers/notification_handler.go`
+- Observers (các kênh): `internal/app/observers/*.go`
+- Notification service (Subject): `internal/domain/services/notification_service.go`
+- Email service (queue, worker): `internal/domain/services/email_service.go`
+- Models: `internal/domain/models/email.go`, `internal/domain/models/notification.go`
 
 ---
 
-## 3. Chuẩn bị môi trường test
+## 2. Email API
 
-### Database PostgreSQL
+Tất cả endpoints cần Bearer token và được group dưới `/api/v1/email` (xem `routes.setupEmailRoutes`).
 
-Tạo DB test và user:
-```sql
-CREATE DATABASE test_base_gin;
-CREATE USER test_user WITH PASSWORD 'test_password';
-GRANT ALL PRIVILEGES ON DATABASE test_base_gin TO test_user;
-```
+Các endpoint hỗ trợ:
 
-### Tự động sinh `.env.test`
+- POST `/api/v1/email/send`
+  - Mô tả: Gửi email bất đồng bộ (đưa vào hàng đợi)
+  - Body: `SendEmailRequest`
+    - `to: string[]` (bắt buộc)
+    - `subject: string` (bắt buộc)
+    - `body: string` (bắt buộc)
+    - `is_html: boolean`
+  - Response 200: `EmailResponse { success, message, queue_id }`
+  - Lỗi: 400 (payload sai), 500 (dịch vụ email lỗi)
 
-`test/config/test_config.go` tự tạo `configs/.env.test` nếu chưa có với cấu hình mặc định (DB/JWT/SMTP/Storage...). Không cần thao tác tay nếu chạy test qua Makefile.
+- POST `/api/v1/email/send-sync`
+  - Mô tả: Gửi email đồng bộ (chờ SMTP trả kết quả)
+  - Body: `SendEmailRequest`
+  - Response 200: `EmailResponse { success, message }`
+  - Lỗi: 400, 500
 
-### Makefile hỗ trợ
+- POST `/api/v1/email/send-bulk`
+  - Mô tả: Gửi nhiều email bất đồng bộ
+  - Body: `SendBulkEmailRequest { emails: SendEmailRequest[] }`
+  - Response 200: `EmailResponse { success, message }`
+  - Lỗi: 400, 500
 
-Sử dụng các target:
-- `make test-setup`: tạo thư mục cần thiết (configs, tmp)
-- `make test-db-setup`: in hướng dẫn khởi tạo DB
-- `make dev-setup`: tải deps + test-setup + test-db-setup
+- GET `/api/v1/email/status`
+  - Mô tả: Trạng thái dịch vụ email, kích thước hàng đợi
+  - Response 200: `EmailStatusResponse { queue_size, status, message }`
+
+- GET `/api/v1/email/test-connection`
+  - Mô tả: Kiểm tra kết nối SMTP
+  - Response 200: `TestEmailConnectionResponse { success, message, connected }`
+  - Lỗi: 500 khi không kết nối được
+
+Triển khai nổi bật:
+- `EmailService` duy trì queue và worker pool để xử lý gửi email bất đồng bộ (`SendAsync`).
+- Với gửi đồng bộ, handler gọi `SendSync` để SMTP trả kết quả ngay.
+- Có hỗ trợ template qua `TemplateManager` nếu cần (các hàm `SendTemplate`, `SendTemplateSync`).
 
 ---
 
-## 4. Chạy test
+## 3. Notification API
 
-### Qua Makefile
+Các endpoint được định nghĩa trong `NotificationHandler` và dùng Bearer token. Định tuyến có thể cần thêm vào router (xem phần [Khởi tạo & Wiring](#5-khởi-tạo--wiring-trong-dự-án)).
+
+Các endpoint dự kiến:
+
+- POST `/api/v1/notifications/send`
+  - Mô tả: Gửi thông báo đến 1 user theo kênh chỉ định.
+  - Body: `SendNotificationRequest`
+    - `user_id: string(UUID)` (bắt buộc)
+    - `type: "email" | "in_app"` (bắt buộc)
+    - `title: string` (bắt buộc)
+    - `message: string` (bắt buộc)
+    - `data: object` (tuỳ kênh)
+      - Với email channel: cần `data.email` (bắt buộc), tuỳ chọn `data.html_body`.
+  - Response 200: `NotificationResponse { id, user_id, type, status, title, message, sent_at, created_at }`
+  - Lỗi: 400 (UUID/đầu vào sai), 500 (kênh không tồn tại, dữ liệu kênh thiếu…)
+
+- POST `/api/v1/notifications/send-bulk`
+  - Mô tả: Gửi nhiều thông báo.
+  - Body: `SendBulkNotificationRequest { notifications: SendNotificationRequest[] }`
+  - Response 200: `SuccessResponse { message }`
+
+- GET `/api/v1/notifications/user/{user_id}`
+  - Mô tả: Lấy danh sách thông báo của user (kênh in-app).
+  - Response 200: `ListNotificationsResponse { notifications[], total, unread }`
+
+- POST `/api/v1/notifications/mark-read`
+  - Mô tả: Đánh dấu đã đọc 1 thông báo (in-app).
+  - Body: `MarkAsReadRequest { notification_id: string(UUID) }`
+  - Response 200: `SuccessResponse { message }`
+  - Lỗi: 400, 404 (không tồn tại)
+
+- GET `/api/v1/notifications/status`
+  - Mô tả: Trạng thái dịch vụ notification và các kênh sẵn có.
+  - Response 200: `NotificationServiceStatusResponse { email_channel, in_app_channel, status, message }`
+
+Triển khai nổi bật:
+- `NotificationService` là Subject, ánh xạ `type` -> Observer tương ứng và gọi `observer.Update(...)`.
+- `EmailChannel` gửi qua `EmailService` (bất đồng bộ), yêu cầu `notification.Data["email"]`.
+- `InAppChannel` ghi thông báo vào DB qua `NotificationRepository`, hỗ trợ `GetNotifications` và `MarkAsRead`.
+
+---
+
+## 4. Observer Pattern: Khái niệm & Ứng dụng
+
+Observer Pattern cho phép Subject phát sự kiện tới nhiều Observer mà không phụ thuộc cụ thể vào từng kênh. Trong dự án:
+
+- Subject: `NotificationService`
+  - `Attach(observer)`/`Detach(type)` để đăng ký/hủy kênh.
+  - `Notify(ctx, notification)` gọi `Update` của Observer theo `notification.Type`.
+
+- Observers: các kênh gửi thông báo triển khai `interfaces.Observer`:
+  - `EmailChannel` (email)
+  - `InAppChannel` (lưu DB, hiển thị trong app)
+  - `SMSChannel` (mẫu minh hoạ – có thể mở rộng thật qua nhà cung cấp SMS)
+
+Tại sao dùng cho email/notification:
+- Tách biệt logic gửi theo kênh khỏi business logic: không cần `switch/case` hay `if-else` phức tạp trong handler/service.
+- Dễ mở rộng: thêm kênh mới (Push, Webhook, Slack…) chỉ cần implement Observer và `Attach`.
+- Tái sử dụng & kiểm thử tốt: từng kênh test độc lập; Subject test mapping/luồng gọi.
+- Tương thích xử lý bất đồng bộ: kênh như email có queue/worker riêng không ảnh hưởng kênh khác.
+
+---
+
+## 5. Khởi tạo & Wiring trong dự án
+
+Các thành phần chính cần khởi tạo khi chạy server:
+
+- Email client + service:
+  - `utils.EmailClient` cấu hình từ `configs/.env` (`EMAIL_SMTP_*`).
+  - `services.EmailService` tạo queue/worker để gửi async.
+  - Tuỳ chọn `TemplateManager` để gửi theo template.
+
+- Notification service + channels:
+  - `services.NotificationService` (Subject).
+  - `observers.EmailChannel` dùng `EmailService` và địa chỉ `From`.
+  - `observers.InAppChannel` dùng `NotificationRepository` để lưu DB.
+  - Gắn kênh: `notificationService.Attach(emailChannel)`, `notificationService.Attach(inAppChannel)`.
+
+- Định tuyến:
+  - Email routes đã có trong `routes.setupEmailRoutes`.
+  - Notification routes: cần thêm group `/api/v1/notifications` và map tới `NotificationHandler` (xem `internal/app/handlers/notification_handler.go`).
+
+Lưu ý: Nếu bạn chưa thấy Notification routes trong `routes.go`, hãy bổ sung wiring khi cần phát hành API notification.
+
+---
+
+## 6. Xử lý lỗi & bảo mật
+
+- Bảo mật: Tất cả endpoints Email/Notification yêu cầu Bearer token (JWT). Middleware: `AuthMiddleware.Authenticate()`.
+- Xác thực dữ liệu: dùng `ShouldBindJSON` + tags `binding:"required"` trong models. Sai định dạng trả `400` với `models.ErrorResponse`.
+- Lỗi kênh/ngoại lệ:
+  - Gửi email thất bại: `500` với "Failed to send email".
+  - Notification kênh không tìm thấy hoặc dữ liệu kênh thiếu (ví dụ thiếu `data.email` khi type=email) có thể trả `500`. Khuyến nghị: chuẩn hoá thông điệp lỗi client-facing và log chi tiết server-side.
+
+---
+
+## 7. Ví dụ gọi API
+
+Email – gửi bất đồng bộ:
 
 ```bash
-make test                 # Tất cả tests
-make test-unit            # Chỉ unit
-make test-integration     # Chỉ integration
-make test-coverage        # Tất cả + coverage.html
-make test-unit-coverage   # Unit + coverage.html
-make test-integration-coverage # Integration + coverage.html
-make test-race            # Phát hiện race condition
-make test-verbose         # Verbose output
+curl -X POST "http://localhost:8001/api/v1/email/send" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": ["user@example.com"],
+    "subject": "Welcome",
+    "body": "Thanks for joining!",
+    "is_html": false
+  }'
 ```
 
-### Trực tiếp bằng Go
+Notification – gửi qua email channel:
 
 ```bash
-go test ./...                    # Tất cả
-go test ./test/unit/...          # Unit
-go test ./test/integration/...   # Integration
-go test -v -run TestAuthHandler_Register ./test/unit
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out -o coverage.html
+curl -X POST "http://localhost:8001/api/v1/notifications/send" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "type": "email",
+    "title": "Welcome!",
+    "message": "Thank you for joining us",
+    "data": {"email": "user@example.com", "html_body": "<p>Hello</p>"}
+  }'
 ```
 
----
+Notification – lấy danh sách in-app:
 
-## 5. Unit Test Guidelines
-
-Phạm vi: kiểm thử handler/service riêng lẻ với mock/stub. Ví dụ: `test/unit/file_handler_test.go` dùng `testify/mock`.
-
-Nguyên tắc:
-- Dùng table-driven tests cho nhiều scenario
-- Dùng `gin.SetMode(gin.TestMode)` và `httptest.NewRecorder()`
-- Mock service dependencies với `testify/mock`
-- Kiểm tra status code, body, header, và schema response (dùng helpers)
-- Test edge cases: thiếu auth, payload invalid, lỗi service, resource không tồn tại, conflict...
-
-Snippet khởi tạo (rút gọn):
-```go
-gin.SetMode(gin.TestMode)
-mockSvc := new(MockUserService)
-h := handlers.NewUserHandler(mockSvc)
-r := gin.New()
-r.POST("/users", h.CreateUser)
-w := httptest.NewRecorder()
-req, _ := helpers.CreateJSONRequest("POST", "/users", payload)
-r.ServeHTTP(w, req)
-helpers.AssertJSONResponse(t, w, http.StatusCreated)
-```
-
----
-
-## 6. Integration Test Guidelines
-
-Phạm vi: kiểm thử flow API hoàn chỉnh với DB thật. Sử dụng setup trong `test/setup/database_setup.go`:
-
-- `TestMain` chạy trước/sau toàn bộ test: connect DB, migrate, seed roles/permissions, cleanup
-- `SetupTestEnvironment`/`CleanupTestEnvironment`: chuẩn bị môi trường và dọn dẹp giữa các test
-- `TruncateTestTables`: đảm bảo môi trường sạch giữa test cases
-
-Gợi ý flow:
-- Auth: register -> login -> refresh -> profile -> change-password
-- User: admin list/create/delete; user self-update; forbidden cases
-- Product: create (auth), update/delete (admin/owner), list/search/sort/paginate
-- File: upload -> get -> download -> delete (owner)
-
-Lưu ý:
-- Sử dụng token thật từ login (không mock) để test middleware
-- Đảm bảo dọn dẹp dữ liệu tạo mới trong teardown
-
----
-
-## 7. Helpers & Utilities
-
-Nguồn: `test/helpers/test_helpers.go`
-
-- Builders: `CreateTestUser()`, `CreateTestAdmin()`, `CreateTestProduct()`
-- Request: `CreateJSONRequest()`, `CreateMultipartRequest()`
-- Assertions: `AssertJSONResponse()`, `AssertErrorResponse()`, `AssertSuccessResponse()`, `AssertAuthResponse()`, `AssertUserResponse()`, `AssertProductResponse()`, `AssertFileResponse()`, `AssertPaginationResponse()`
-- Middleware mocks: `MockAuthMiddleware()`, `MockOptionalAuthMiddleware()`, `MockAdminMiddleware()`
-- Misc: `SetupTestRouter()`, `GenerateTestJWT()` (placeholder), helpers con trỏ `StringPtr`, `Float64Ptr`
-
----
-
-## 8. Coverage & Báo cáo
-
-Mục tiêu coverage (tham khảo trong `test/README.md`):
-- Handlers > 90%
-- Services > 85%
-- Repositories > 80%
-- Overall > 85%
-
-Sinh report:
 ```bash
-make test-coverage
-# Tạo coverage.html ở root, mở để xem chi tiết
-```
-
-Hiển thị nhanh trên terminal:
-```bash
-make test-coverage-term
+curl -X GET "http://localhost:8001/api/v1/notifications/user/550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
 ---
 
-## 9. CI/CD tích hợp test
+## 8. Kiểm thử liên quan
 
-Workflow mẫu (đã có trong README test): sử dụng service `postgres`, chạy `make ci-test` (deps + setup + toàn bộ tests với coverage).
-
-Tips CI:
-- Cache module Go để tăng tốc
-- Đảm bảo health-check Postgres trước khi chạy test
-- Xuất artifact `coverage.html` nếu cần
+- Unit tests có sẵn cho Email handler: `test/unit/email_handler_test.go` (mock service, kiểm tra 200/400/500, queue size, test connection).
+- Gợi ý thêm tests cho Notification handler:
+  - Happy paths: send (email/in_app), send-bulk, get by user, mark-read.
+  - Edge cases: user_id không hợp lệ, thiếu `data.email` với channel email, kênh không đăng ký.
 
 ---
 
-## 10. Troubleshooting
+## 9. Gợi ý mở rộng
 
-- Kết nối DB: kiểm tra Postgres chạy và tài khoản DB đúng
-- Cổng 8001: tránh trùng cổng khi boot server trong integration
-- Quyền thư mục: `LOCAL_STORAGE_PATH` (mặc định `/tmp/test_files`) có quyền ghi
-- Env: chắc chắn `.env.test` đã được tạo (Makefile `test-setup` hoặc auto qua test_config)
-- Race condition: sử dụng `make test-race`
+- Thêm kênh mới: Push/Webhook/Slack chỉ cần implement `interfaces.Observer` và `Attach` vào `NotificationService`.
+- Bổ sung retry/Dead-letter queue cho EmailService khi gửi thất bại.
+- Chuẩn hoá lỗi client-facing (error codes) cho Notification.
+- Hoàn thiện wiring Notification routes trong `routes.go` và `cmd/server/main.go` khi phát hành.
+- Log/metrics dành riêng cho từng kênh để theo dõi hiệu năng.
 
 ---
 
-## 11. Gợi ý mở rộng
-
-- Bổ sung integration test cho File endpoints (multipart upload/cleanup)
-- Thêm test cho RBAC (role/permission) ở từng route
-- Tạo mocks tự động bằng `mockgen` cho services/repositories
-- Thêm benchmark (đã có target `make benchmark`)
-- Báo cáo JUnit/XML cho CI, thu thập coverage đa gói
-
-Chúc bạn đạt coverage “xanh mướt” và test vững chắc! ✅
+Chốt lại: Email API xử lý gửi thư với queue/worker cho hiệu năng; Notification API dựa trên Observer Pattern để dễ mở rộng kênh. Cách tiếp cận này giúp tách biệt, dễ kiểm thử, và phù hợp hệ thống cần nhiều kênh thông báo.
